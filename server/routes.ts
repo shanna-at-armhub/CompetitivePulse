@@ -58,10 +58,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     
     try {
-      // Ensure the date is properly converted to a Date object if it's a string
+      // Get the data from request body
       let data = { ...req.body };
-      if (typeof data.date === 'string') {
-        data.date = new Date(data.date);
+      
+      // Ensure date is properly converted to a Date object regardless of input format
+      if (data.date) {
+        // If it's already a Date object that was serialized as an object with properties
+        if (data.date && typeof data.date === 'object' && data.date.hasOwnProperty('toISOString')) {
+          data.date = new Date(data.date);
+        } 
+        // If it's an ISO string
+        else if (typeof data.date === 'string') {
+          data.date = new Date(data.date);
+        }
+        // If it's already a proper Date object, leave it as is
       }
       
       const validatedData = insertWorkPatternSchema.parse({

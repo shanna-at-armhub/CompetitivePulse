@@ -56,9 +56,9 @@ export function AddPatternModal({ isOpen, onClose }: AddPatternModalProps) {
     
     try {
       if (patternType === "one_time") {
-        // Convert date to ISO string format for the API
+        // Send the date object directly (don't call toISOString())
         await addWorkPattern({
-          date: date.toISOString(),
+          date,
           location,
           notes,
         });
