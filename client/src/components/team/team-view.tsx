@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Users } from "lucide-react";
+import { TeamCalendar } from "@/components/team/team-calendar";
 
 // Removes password and other sensitive fields from User type
 type SafeUser = Omit<User, "password">;
@@ -94,7 +95,7 @@ export function TeamView() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-center py-8">Team calendar will be implemented here</p>
+              <TeamCalendar />
             </CardContent>
           </Card>
         </TabsContent>

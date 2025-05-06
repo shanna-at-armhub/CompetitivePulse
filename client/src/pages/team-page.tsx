@@ -24,7 +24,11 @@ export default function TeamPage() {
   }
   
   if (!user) {
-    return null; // Will redirect due to the useEffect above
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    ); // Will redirect due to the useEffect above
   }
   
   return <TeamView />;
