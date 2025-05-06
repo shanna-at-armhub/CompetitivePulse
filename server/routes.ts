@@ -24,6 +24,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // API Routes
   
+  // Team routes - Get all users
+  app.get("/api/team", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const users = await storage.getAllUsers();
+      
+      // Return users without sensitive information
+      const safeUsers = users.map(user => {
+        const { password, ...safeUser } = user;
+        return safeUser;
+      });
+      
+      return res.json(safeUsers);
+    } catch (error) {
+      console.error("Error fetching team users:", error);
+      return res.status(500).json({ message: "Failed to fetch team users" });
+    }
+  });
+  
   // Work Pattern Routes
   app.get("/api/work-patterns", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
