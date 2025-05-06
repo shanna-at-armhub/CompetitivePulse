@@ -72,6 +72,7 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     isLoading: isWorkPatternsLoading
   } = useQuery<WorkPattern[]>({
     queryKey: ["/api/work-patterns", { startDate: format(startDate, "yyyy-MM-dd"), endDate: format(endDate, "yyyy-MM-dd") }],
+    queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!user,
   });
   
@@ -81,6 +82,7 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     isLoading: isRecurringPatternsLoading
   } = useQuery<RecurringPattern[]>({
     queryKey: ["/api/recurring-patterns"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!user,
   });
   
@@ -97,6 +99,7 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
         location: locationFilter 
       }
     ],
+    queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!user && mode === "team",
   });
   
@@ -254,8 +257,8 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
         date.getFullYear() === today.getFullYear()
       );
       
-      // Get work patterns for this day
-      const dayPatterns = mode === "personal"
+      // Get one-time work patterns for this day
+      const oneTimePatterns = mode === "personal"
         ? workPatterns.filter(pattern => {
             const patternDate = new Date(pattern.date);
             return (
@@ -272,6 +275,37 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
               patternDate.getFullYear() === date.getFullYear()
             );
           });
+      
+      // Get recurring patterns for this day
+      const weekday = date.getDay(); // 0: Sunday, 1: Monday, ..., 6: Saturday
+      
+      const recurringForDay = mode === "personal"
+        ? recurringPatterns.filter(pattern => {
+            // Check if the recurring pattern applies to this day of the week
+            return (
+              (weekday === 0 && pattern.sunday) ||
+              (weekday === 1 && pattern.monday) ||
+              (weekday === 2 && pattern.tuesday) ||
+              (weekday === 3 && pattern.wednesday) ||
+              (weekday === 4 && pattern.thursday) ||
+              (weekday === 5 && pattern.friday) ||
+              (weekday === 6 && pattern.saturday)
+            );
+          })
+        : []; // For team mode, we would need to fetch recurring patterns for all team members
+      
+      // Convert recurring patterns to work patterns format for display
+      const recurringAsWorkPatterns = recurringForDay.map(pattern => ({
+        id: -pattern.id, // Use negative ID to avoid conflicts with real work patterns
+        userId: pattern.userId,
+        date: date,
+        location: pattern.location,
+        notes: pattern.notes,
+        createdAt: pattern.createdAt
+      }));
+      
+      // Combine both types of patterns
+      const dayPatterns = [...oneTimePatterns, ...recurringAsWorkPatterns];
       
       days.push({
         date,
