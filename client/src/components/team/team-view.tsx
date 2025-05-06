@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Users } from "lucide-react";
+import { Loader2, Users, Calendar as CalendarIcon } from "lucide-react";
 import { TeamCalendar } from "@/components/team/team-calendar";
 
 // Removes password and other sensitive fields from User type
@@ -41,7 +41,7 @@ export function TeamView() {
           </div>
           <div className="flex items-center gap-4">
             <a href="/" className="flex items-center gap-2 text-muted-foreground hover:text-primary text-sm transition-colors">
-              <Calendar className="h-4 w-4" />
+              <CalendarIcon className="h-4 w-4" />
               <span>Return to Calendar</span>
             </a>
             <TabsList>

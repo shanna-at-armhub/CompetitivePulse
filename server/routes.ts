@@ -310,6 +310,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get work patterns for all users in this date range
       let patterns = await storage.getWorkPatternsInRange(startDate, endDate);
       
+      // Get all users to find their recurring patterns
+      const users = await storage.getAllUsers();
+      
+      // Get recurring patterns for all users and convert to work patterns in date range
+      const recurringPatternsPromises = users.map(async (user) => {
+        const userRecurringPatterns = await storage.getUserRecurringPatterns(user.id);
+        // Convert recurring patterns to one-time patterns for the date range
+        return userRecurringPatterns.flatMap(recurringPattern => {
+          const patterns = [];
+          // For each day in the date range
+          let currentDate = new Date(startDate);
+          while (currentDate <= endDate) {
+            const dayOfWeek = currentDate.getDay(); // 0 is Sunday, 1 is Monday, etc.
+            
+            // Check if the recurring pattern applies to this day
+            const dayMap = [
+              recurringPattern.sunday, // Sunday (0)
+              recurringPattern.monday, // Monday (1)
+              recurringPattern.tuesday, // Tuesday (2)
+              recurringPattern.wednesday, // Wednesday (3)
+              recurringPattern.thursday, // Thursday (4)
+              recurringPattern.friday, // Friday (5)
+              recurringPattern.saturday // Saturday (6)
+            ];
+            
+            if (dayMap[dayOfWeek]) {
+              // Create a one-time pattern for this day
+              patterns.push({
+                id: -1, // Virtual ID for recurring pattern instances
+                userId: user.id,
+                date: new Date(currentDate),
+                location: recurringPattern.location,
+                notes: recurringPattern.notes,
+                createdAt: new Date(),
+                isRecurring: true // Add flag to identify recurring patterns
+              });
+            }
+            
+            // Move to the next day
+            currentDate.setDate(currentDate.getDate() + 1);
+          }
+          
+          return patterns;
+        });
+      });
+      
+      // Resolve all promises and flatten the array
+      const recurringPatterns = (await Promise.all(recurringPatternsPromises)).flat();
+      
+      // Add recurring patterns to the result
+      patterns = [...patterns, ...recurringPatterns];
+      
+      // Remove one-time patterns that match recurring patterns (prefer one-time over recurring)
+      patterns = patterns.filter((pattern, index, self) => {
+        // Keep the pattern if it's not a recurring pattern or if there's no one-time pattern with the same date and user
+        if (!pattern.isRecurring) return true;
+        
+        // Check if there's a one-time pattern with the same date and user
+        return !self.some(p => 
+          !p.isRecurring && 
+          p.userId === pattern.userId && 
+          p.date.toDateString() === pattern.date.toDateString()
+        );
+      });
+      
       // Get public holidays
       const { getQueenslandPublicHolidaysAsWorkPatterns } = await import('./services/holidays');
       // For team view, create system-wide holiday patterns with userId = 0
