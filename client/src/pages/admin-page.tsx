@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { User } from "@shared/schema";
-import { Sidebar } from "@/components/ui/sidebar";
 import { Header } from "@/components/ui/header";
 import { Button } from "@/components/ui/button";
 import { 
@@ -22,25 +21,18 @@ import {
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserCircle, Users, Calendar, Building, Home } from "lucide-react";
-import { useMobile } from "@/hooks/use-mobile";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
 export default function AdminPage() {
   const { user } = useAuth();
-  const isMobile = useMobile();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
     enabled: !!user && user.role === "admin",
   });
-  
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
   
   // Filter users by search term
   const filteredUsers = users.filter(user => 
@@ -59,24 +51,9 @@ export default function AdminPage() {
   };
   
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-50">
-      {/* Sidebar */}
-      <Sidebar 
-        isOpen={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
-      />
-      
-      {/* Mobile sidebar overlay */}
-      {isMobile && sidebarOpen && (
-        <div 
-          className="fixed inset-0 z-10 bg-gray-900 opacity-50" 
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-      
-      {/* Main content */}
-      <div className="flex flex-col flex-1 w-0 overflow-hidden">
-        <Header onMenuButtonClick={toggleSidebar} />
+    <div className="h-screen p-[10px] bg-gray-50">
+      <div className="h-full rounded-lg shadow-sm overflow-auto bg-white">
+        <Header />
         
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="max-w-6xl mx-auto">
