@@ -19,7 +19,8 @@ const loginSchema = z.object({
 
 // Registration form schema
 const registerSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
+  username: z.string().optional(),
+  email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   displayName: z.string().min(2, "Display name must be at least 2 characters"),
 });
@@ -46,6 +47,7 @@ export default function AuthPage() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       username: "",
+      email: "",
       password: "",
       displayName: "",
     },
@@ -58,7 +60,12 @@ export default function AuthPage() {
 
   // Handle registration submission
   const onRegisterSubmit = (values: RegisterFormValues) => {
-    registerMutation.mutate(values);
+    // Ensure the username is set to email if not provided
+    const formData = {
+      ...values,
+      username: values.username || values.email
+    };
+    registerMutation.mutate(formData);
   };
 
   // Redirect to home if already logged in
@@ -94,9 +101,9 @@ export default function AuthPage() {
                       name="username"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Username</FormLabel>
+                          <FormLabel>Username or Email</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter your username" {...field} />
+                            <Input placeholder="Enter your username or email" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -136,12 +143,26 @@ export default function AuthPage() {
                   <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
                     <FormField
                       control={registerForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="Your email address" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={registerForm.control}
                       name="username"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Username</FormLabel>
+                          <FormLabel>Username (Optional)</FormLabel>
                           <FormControl>
-                            <Input placeholder="Choose a username" {...field} />
+                            <Input placeholder="Choose a username (or use email)" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

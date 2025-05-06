@@ -11,6 +11,7 @@ export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(userData: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<Omit<User, 'id' | 'password' | 'createdAt'>>): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
@@ -53,6 +54,11 @@ export class DatabaseStorage implements IStorage {
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result[0];
+  }
+  
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
     return result[0];
   }
 
@@ -187,8 +193,13 @@ export class DatabaseStorage implements IStorage {
     if (patternData.location !== undefined) cleanData.location = patternData.location;
     if (patternData.notes !== undefined) cleanData.notes = patternData.notes;
     if (patternData.userId !== undefined) cleanData.userId = patternData.userId;
-    if (patternData.dayOfWeek !== undefined) cleanData.dayOfWeek = patternData.dayOfWeek;
-    if (patternData.isActive !== undefined) cleanData.isActive = patternData.isActive;
+    if (patternData.monday !== undefined) cleanData.monday = patternData.monday;
+    if (patternData.tuesday !== undefined) cleanData.tuesday = patternData.tuesday;
+    if (patternData.wednesday !== undefined) cleanData.wednesday = patternData.wednesday;
+    if (patternData.thursday !== undefined) cleanData.thursday = patternData.thursday;
+    if (patternData.friday !== undefined) cleanData.friday = patternData.friday;
+    if (patternData.saturday !== undefined) cleanData.saturday = patternData.saturday;
+    if (patternData.sunday !== undefined) cleanData.sunday = patternData.sunday;
     
     const [pattern] = await db.update(recurringPatterns)
       .set(cleanData)
