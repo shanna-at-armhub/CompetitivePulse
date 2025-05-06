@@ -31,11 +31,11 @@ export interface IStorage {
   deleteRecurringPattern(id: number): Promise<boolean>;
   
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: any; // Using any to avoid TypeScript errors with session.SessionStore
 }
 
 export class DatabaseStorage implements IStorage {
-  sessionStore: session.SessionStore;
+  sessionStore: any; // Using any to work around TypeScript errors
 
   constructor() {
     this.sessionStore = new PostgresSessionStore({ 
@@ -90,6 +90,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWorkPattern(patternData: InsertWorkPattern): Promise<WorkPattern> {
+    // Check if there's already a pattern for this user on this date
+    const existingPattern = await db.select()
+      .from(workPatterns)
+      .where(
+        and(
+          eq(workPatterns.userId, patternData.userId),
+          sql`DATE(${workPatterns.date}) = DATE(${patternData.date})`
+        )
+      )
+      .limit(1);
+    
+    // If there's an existing pattern, update it instead of creating a new one
+    if (existingPattern.length > 0) {
+      console.log(`Overwriting existing pattern ${existingPattern[0].id} for date ${patternData.date}`);
+      const [pattern] = await db.update(workPatterns)
+        .set({
+          location: patternData.location,
+          notes: patternData.notes
+        })
+        .where(eq(workPatterns.id, existingPattern[0].id))
+        .returning();
+      return pattern;
+    }
+    
+    // Otherwise create a new pattern
     const [pattern] = await db.insert(workPatterns).values(patternData).returning();
     return pattern;
   }

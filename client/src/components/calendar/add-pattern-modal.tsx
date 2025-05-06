@@ -5,14 +5,15 @@ import { Calendar } from "@/components/ui/calendar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { format, addDays, eachDayOfInterval } from "date-fns";
+import { CalendarIcon, CalendarDaysIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { locationEnum, patternTypeEnum } from "@shared/schema";
 import { useCalendar } from "@/hooks/use-calendar";
 import { Toggle } from "@/components/ui/toggle";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type AddPatternModalProps = {
   isOpen: boolean;
@@ -23,6 +24,8 @@ export function AddPatternModal({ isOpen, onClose }: AddPatternModalProps) {
   const { addWorkPattern, addRecurringPattern } = useCalendar();
   const [patternType, setPatternType] = useState<"one_time" | "recurring">("one_time");
   const [date, setDate] = useState<Date>(new Date());
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [useDateRange, setUseDateRange] = useState<boolean>(false);
   const [location, setLocation] = useState<"home" | "office" | "annual_leave" | "personal_leave" | "other">("office");
   const [notes, setNotes] = useState<string>("");
   
@@ -39,6 +42,8 @@ export function AddPatternModal({ isOpen, onClose }: AddPatternModalProps) {
   const resetForm = () => {
     setPatternType("one_time");
     setDate(new Date());
+    setEndDate(undefined);
+    setUseDateRange(false);
     setLocation("office");
     setNotes("");
     setMonday(true);
@@ -55,19 +60,60 @@ export function AddPatternModal({ isOpen, onClose }: AddPatternModalProps) {
     e.preventDefault();
     
     try {
-      console.log("Submitting pattern form:", { patternType, date, location, notes });
+      console.log("Submitting pattern form:", { 
+        patternType, 
+        date, 
+        endDate, 
+        useDateRange, 
+        location, 
+        notes 
+      });
       
       if (patternType === "one_time") {
-        // Ensure we have a valid date - create a clean date object
-        // This prevents issues with date serialization
-        const cleanDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        console.log("Using clean date:", cleanDate, cleanDate.toISOString());
-        
-        await addWorkPattern({
-          date: cleanDate,
-          location,
-          notes: notes || null, // Ensure empty string becomes null
-        });
+        // If using date range, create entries for each day in the range
+        if (useDateRange && endDate) {
+          console.log(`Creating entries for date range: ${date.toDateString()} to ${endDate.toDateString()}`);
+          
+          // Get all dates in the range
+          const dateRange = eachDayOfInterval({
+            start: date,
+            end: endDate
+          });
+          
+          console.log(`Total days in range: ${dateRange.length}`);
+          
+          // Create a work pattern for each date
+          const promises = dateRange.map(async (currentDate) => {
+            const cleanDate = new Date(
+              currentDate.getFullYear(), 
+              currentDate.getMonth(), 
+              currentDate.getDate()
+            );
+            
+            console.log(`Creating pattern for date: ${cleanDate.toDateString()}`);
+            
+            await addWorkPattern({
+              date: cleanDate,
+              location,
+              notes: notes || null,
+            });
+          });
+          
+          await Promise.all(promises);
+        } 
+        // Otherwise just create a single entry
+        else {
+          // Ensure we have a valid date - create a clean date object
+          // This prevents issues with date serialization
+          const cleanDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+          console.log("Using clean date:", cleanDate, cleanDate.toISOString());
+          
+          await addWorkPattern({
+            date: cleanDate,
+            location,
+            notes: notes || null, // Ensure empty string becomes null
+          });
+        }
       } else {
         await addRecurringPattern({
           location,
@@ -135,29 +181,85 @@ export function AddPatternModal({ isOpen, onClose }: AddPatternModalProps) {
           
           {/* Date Selection (for one-time patterns) */}
           {patternType === "one_time" && (
-            <div className="mb-4">
-              <Label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
-                Date
-              </Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(newDate) => newDate && setDate(newDate)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="use-date-range" 
+                  checked={useDateRange}
+                  onCheckedChange={(checked) => {
+                    setUseDateRange(checked === true);
+                    if (checked === true && !endDate) {
+                      setEndDate(date ? new Date(date) : new Date());
+                    }
+                  }}
+                />
+                <Label htmlFor="use-date-range" className="text-sm font-medium">
+                  Use date range
+                </Label>
+              </div>
+              
+              <div className="mb-4 grid grid-cols-1 gap-4">
+                <div>
+                  <Label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
+                    {useDateRange ? "Start Date" : "Date"}
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={(newDate) => {
+                          if (newDate) {
+                            setDate(newDate);
+                            // If end date is before start date, update end date
+                            if (useDateRange && endDate && newDate > endDate) {
+                              setEndDate(newDate);
+                            }
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                {useDateRange && (
+                  <div>
+                    <Label htmlFor="end-date" className="block text-sm font-medium text-gray-700 mb-1">
+                      End Date
+                    </Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={endDate}
+                          onSelect={(newDate) => newDate && setEndDate(newDate)}
+                          disabled={(day) => date ? day < date : false}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+              </div>
             </div>
           )}
           
