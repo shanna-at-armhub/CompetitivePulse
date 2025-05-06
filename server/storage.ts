@@ -90,20 +90,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWorkPattern(patternData: InsertWorkPattern): Promise<WorkPattern> {
+    // Make sure we have a proper Date object for date
+    const cleanDate = patternData.date instanceof Date 
+      ? patternData.date 
+      : new Date(patternData.date);
+    
     // Check if there's already a pattern for this user on this date
     const existingPattern = await db.select()
       .from(workPatterns)
       .where(
         and(
           eq(workPatterns.userId, patternData.userId),
-          sql`DATE(${workPatterns.date}) = DATE(${patternData.date})`
+          sql`DATE(${workPatterns.date}) = DATE(${cleanDate})`
         )
       )
       .limit(1);
     
     // If there's an existing pattern, update it instead of creating a new one
     if (existingPattern.length > 0) {
-      console.log(`Overwriting existing pattern ${existingPattern[0].id} for date ${patternData.date}`);
+      console.log(`Overwriting existing pattern ${existingPattern[0].id} for date ${cleanDate}`);
       const [pattern] = await db.update(workPatterns)
         .set({
           location: patternData.location,
@@ -114,14 +119,27 @@ export class DatabaseStorage implements IStorage {
       return pattern;
     }
     
-    // Otherwise create a new pattern
-    const [pattern] = await db.insert(workPatterns).values(patternData).returning();
+    // Otherwise create a new pattern with cleaned date
+    const [pattern] = await db.insert(workPatterns).values({
+      ...patternData,
+      date: cleanDate
+    }).returning();
     return pattern;
   }
 
   async updateWorkPattern(id: number, patternData: Partial<InsertWorkPattern>): Promise<WorkPattern | undefined> {
+    // Clean data before updating
+    const cleanData: Partial<InsertWorkPattern> = { ...patternData };
+    
+    // Convert date string to Date object if present
+    if (patternData.date) {
+      cleanData.date = patternData.date instanceof Date 
+        ? patternData.date 
+        : new Date(patternData.date);
+    }
+    
     const [pattern] = await db.update(workPatterns)
-      .set(patternData)
+      .set(cleanData)
       .where(eq(workPatterns.id, id))
       .returning();
     return pattern;
