@@ -39,10 +39,16 @@ export function TeamView() {
             <h1 className="text-3xl font-bold">Team</h1>
             <p className="text-muted-foreground">View and coordinate with your team members</p>
           </div>
-          <TabsList>
-            <TabsTrigger value="team">Team Members</TabsTrigger>
-            <TabsTrigger value="calendar">Team Calendar</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center gap-4">
+            <a href="/" className="flex items-center gap-2 text-muted-foreground hover:text-primary text-sm transition-colors">
+              <Calendar className="h-4 w-4" />
+              <span>Return to Calendar</span>
+            </a>
+            <TabsList>
+              <TabsTrigger value="team">Team Members</TabsTrigger>
+              <TabsTrigger value="calendar">Team Calendar</TabsTrigger>
+            </TabsList>
+          </div>
         </div>
 
         <TabsContent value="team" className="mt-0">
