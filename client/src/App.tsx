@@ -11,6 +11,7 @@ import TeamPage from "@/pages/team-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 import { CalendarProvider } from "./hooks/use-calendar";
+import { NavHeader } from "@/components/layout/nav-header";
 
 function Router() {
   return (
@@ -30,8 +31,13 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CalendarProvider>
-          <Router />
-          <Toaster />
+          <div className="flex flex-col min-h-screen">
+            <NavHeader />
+            <div className="flex-1">
+              <Router />
+            </div>
+            <Toaster />
+          </div>
         </CalendarProvider>
       </AuthProvider>
     </QueryClientProvider>
