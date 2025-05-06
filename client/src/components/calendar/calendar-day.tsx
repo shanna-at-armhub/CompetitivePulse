@@ -6,6 +6,7 @@ import { WorkPattern } from "@shared/schema";
 import { useCalendar } from "@/hooks/use-calendar";
 import { useAuth } from "@/hooks/use-auth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type CalendarDayProps = {
   date: Date | null;

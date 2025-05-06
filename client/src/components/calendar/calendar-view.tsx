@@ -78,7 +78,9 @@ function CalendarContent({
     locationFilter, 
     setLocationFilter,
     isLoading,
-    recurringPatterns
+    recurringPatterns,
+    currentDate,
+    setCurrentDate
   } = useCalendar();
   
   return (
@@ -185,43 +187,110 @@ function CalendarContent({
           <CalendarSkeleton view={view as "month" | "week" | "day"} />
         ) : view === "day" ? (
           // Day view (list view like Outlook)
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {calendarDays.length > 0 && calendarDays[0].date && (
-              <CalendarDay
-                date={calendarDays[0].date}
-                isCurrentMonth={true}
-                isToday={calendarDays[0].isToday}
-                workPatterns={calendarDays[0].workPatterns}
-                onClick={() => calendarDays[0].date && onOpenDetailModal(calendarDays[0].date)}
-                view="day"
-              />
-            )}
+          <div className="space-y-4">
+            {/* Day Navigation */}
+            <div className="flex items-center justify-between bg-white p-3 rounded-lg shadow">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  const prevDay = new Date(currentDate);
+                  prevDay.setDate(prevDay.getDate() - 1);
+                  setCurrentDate(prevDay);
+                }}
+              >
+                Previous Day
+              </Button>
+              <div className="text-lg font-semibold">
+                {currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  const nextDay = new Date(currentDate);
+                  nextDay.setDate(nextDay.getDate() + 1);
+                  setCurrentDate(nextDay);
+                }}
+              >
+                Next Day
+              </Button>
+            </div>
+            
+            {/* Day Content */}
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              {calendarDays.length > 0 && calendarDays[0].date && (
+                <CalendarDay
+                  date={calendarDays[0].date}
+                  isCurrentMonth={true}
+                  isToday={calendarDays[0].isToday}
+                  workPatterns={calendarDays[0].workPatterns}
+                  onClick={() => calendarDays[0].date && onOpenDetailModal(calendarDays[0].date)}
+                  view="day"
+                />
+              )}
+            </div>
           </div>
         ) : view === "week" ? (
           // Week view (7 days in a row)
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {/* Weekday headers */}
-            <div className="grid grid-cols-7 gap-px bg-gray-200">
-              {weekdays.map((day) => (
-                <div key={day} className="bg-white px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase">
-                  {day}
-                </div>
-              ))}
+          <div className="space-y-4">
+            {/* Week Navigation */}
+            <div className="flex items-center justify-between bg-white p-3 rounded-lg shadow">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  const prevWeek = new Date(currentDate);
+                  prevWeek.setDate(prevWeek.getDate() - 7);
+                  setCurrentDate(prevWeek);
+                }}
+              >
+                Previous Week
+              </Button>
+              <div className="text-lg font-semibold">
+                {calendarDays.length >= 7 && calendarDays[0].date && calendarDays[6].date ? 
+                  `${calendarDays[0].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${calendarDays[6].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` :
+                  "Week View"
+                }
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  const nextWeek = new Date(currentDate);
+                  nextWeek.setDate(nextWeek.getDate() + 7);
+                  setCurrentDate(nextWeek);
+                }}
+              >
+                Next Week
+              </Button>
             </div>
             
-            {/* Calendar days - only show the 7 days of the week */}
-            <div className="grid grid-cols-7 gap-px bg-gray-200">
-              {calendarDays.slice(0, 7).map((day, index) => (
-                <CalendarDay
-                  key={index}
-                  date={day.date}
-                  isCurrentMonth={day.isCurrentMonth}
-                  isToday={day.isToday}
-                  workPatterns={day.workPatterns}
-                  onClick={() => day.date && onOpenDetailModal(day.date)}
-                  view="week"
-                />
-              ))}
+            {/* Week Content */}
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              {/* Weekday headers */}
+              <div className="grid grid-cols-7 gap-px bg-gray-200">
+                {weekdays.map((day) => (
+                  <div key={day} className="bg-white px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase">
+                    {day}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Calendar days - only show the 7 days of the week */}
+              <div className="grid grid-cols-7 gap-px bg-gray-200">
+                {calendarDays.slice(0, 7).map((day, index) => (
+                  <CalendarDay
+                    key={index}
+                    date={day.date}
+                    isCurrentMonth={day.isCurrentMonth}
+                    isToday={day.isToday}
+                    workPatterns={day.workPatterns}
+                    onClick={() => day.date && onOpenDetailModal(day.date)}
+                    view="week"
+                  />
+                ))}
+              </div>
             </div>
           </div>
         ) : (
