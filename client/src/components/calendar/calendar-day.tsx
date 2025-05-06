@@ -94,8 +94,11 @@ export function CalendarDay({
   // Check if there's a public holiday
   const publicHoliday = processedPatterns.find(p => p.isPublicHoliday);
   
-  // Render a day view (detailed list view like Outlook)
+  // Render a day view (detailed list view like Outlook with time slots)
   if (view === "day") {
+    // Generate time slots from 8 AM to 6 PM
+    const timeSlots = Array.from({ length: 11 }, (_, i) => 8 + i);
+    
     return (
       <div className="bg-white rounded-md shadow-sm overflow-hidden">
         <div className={cn(
@@ -114,62 +117,109 @@ export function CalendarDay({
           )}
         </div>
         
-        <div className="divide-y divide-gray-100">
-          {processedPatterns.length > 0 ? (
-            processedPatterns
-              .filter(p => !p.isPublicHoliday) // Skip public holidays as they're shown in the header
-              .map((pattern) => (
-                <div key={pattern.id} className="p-3 hover:bg-gray-50">
-                  <div className="flex items-center">
-                    <Avatar className={cn(
-                      "w-10 h-10 ring-2",
-                      pattern.location === "office" && "ring-[#10b981]",
-                      pattern.location === "home" && "ring-[#3b82f6]",
-                      pattern.location === "annual_leave" && "ring-[#f59e0b]",
-                      pattern.location === "personal_leave" && "ring-[#ef4444]",
-                      pattern.location === "other" && "ring-gray-400"
-                    )}>
-                      <AvatarImage 
-                        src={pattern.avatarUrl || ""} 
-                        alt={pattern.displayName} 
-                      />
-                      <AvatarFallback>
-                        {getInitials(pattern.displayName)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="ml-3">
-                      <h4 className="font-medium">{pattern.displayName}</h4>
-                      <div className="flex items-center mt-1">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "rounded-sm font-normal",
-                            pattern.location === "office" && "bg-green-50 text-green-700 border-green-200",
-                            pattern.location === "home" && "bg-blue-50 text-blue-700 border-blue-200",
-                            pattern.location === "annual_leave" && "bg-amber-50 text-amber-700 border-amber-200",
-                            pattern.location === "personal_leave" && "bg-red-50 text-red-700 border-red-200",
-                            pattern.location === "other" && "bg-gray-50 text-gray-700 border-gray-200"
-                          )}
-                        >
-                          {pattern.location === "office" ? "Working from Office" :
-                           pattern.location === "home" ? "Working from Home" :
-                           pattern.location === "annual_leave" ? "Annual Leave" :
-                           pattern.location === "personal_leave" ? "Personal Leave" :
-                           pattern.location === "public_holiday" ? "Public Holiday" : "Other"}
-                        </Badge>
-                      </div>
-                      {pattern.notes && (
-                        <p className="mt-2 text-sm text-muted-foreground">{pattern.notes}</p>
-                      )}
-                    </div>
+        {/* Time slots grid */}
+        <div className="flex flex-col divide-y divide-gray-100">
+          {/* All-day events (like public holidays and full day work patterns) */}
+          <div className="p-3 border-b border-gray-200">
+            <div className="flex">
+              <div className="w-20 flex-shrink-0 text-xs text-gray-500 pt-1">All day</div>
+              <div className="flex-1 ml-2 bg-gray-50 rounded min-h-14 p-2">
+                {publicHoliday ? (
+                  <div className="bg-red-100 p-2 rounded border border-red-200 text-red-800 text-sm">
+                    <span className="font-medium">{publicHoliday.notes || "Public Holiday"}</span>
                   </div>
-                </div>
-              ))
-          ) : !publicHoliday ? (
-            <div className="p-8 text-center text-muted-foreground">
-              <p>No work patterns scheduled for this day</p>
+                ) : processedPatterns.some(p => 
+                    p.location === "annual_leave" || 
+                    p.location === "personal_leave" || 
+                    p.location === "public_holiday"
+                  ) ? (
+                  <div className="space-y-2">
+                    {processedPatterns
+                      .filter(p => 
+                        p.location === "annual_leave" || 
+                        p.location === "personal_leave" || 
+                        p.location === "public_holiday"
+                      )
+                      .map((pattern) => (
+                        <div key={pattern.id} className={cn(
+                          "p-2 rounded border text-sm",
+                          pattern.location === "annual_leave" && "bg-amber-100 border-amber-200 text-amber-800",
+                          pattern.location === "personal_leave" && "bg-red-100 border-red-200 text-red-800",
+                          pattern.location === "public_holiday" && "bg-red-100 border-red-200 text-red-800",
+                        )}>
+                          <div className="flex items-center">
+                            <Avatar className="w-5 h-5 mr-2">
+                              <AvatarImage src={pattern.avatarUrl || ""} alt={pattern.displayName} />
+                              <AvatarFallback className="text-[10px]">{getInitials(pattern.displayName)}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{pattern.displayName}</span>
+                            <span className="ml-2">
+                              {pattern.location === "annual_leave" ? "Annual Leave" :
+                               pattern.location === "personal_leave" ? "Personal Leave" :
+                               pattern.location === "public_holiday" ? "Public Holiday" : "Other"}
+                            </span>
+                            {pattern.notes && <span className="ml-2 text-xs italic">({pattern.notes})</span>}
+                          </div>
+                        </div>
+                      ))
+                    }
+                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+                    No all-day events
+                  </div>
+                )}
+              </div>
             </div>
-          ) : null}
+          </div>
+          
+          {/* Time slots */}
+          {timeSlots.map(hour => (
+            <div key={hour} className="p-3 hover:bg-gray-50 transition-colors">
+              <div className="flex">
+                <div className="w-20 flex-shrink-0 text-xs text-gray-500 pt-1">
+                  {hour === 12 ? '12 PM' : hour < 12 ? `${hour} AM` : `${hour - 12} PM`}
+                </div>
+                <div className="flex-1 ml-2 min-h-14 rounded">
+                  {processedPatterns
+                    .filter(p => !p.isPublicHoliday && 
+                             p.location !== "annual_leave" && 
+                             p.location !== "personal_leave")
+                    .map((pattern) => (
+                      // Simple representation - in a real app, you'd have start and end times
+                      // For this example, we'll spread work patterns across the day
+                      <div key={pattern.id} className={cn(
+                        "p-2 rounded border mb-2",
+                        pattern.location === "office" && "bg-green-50 border-green-200",
+                        pattern.location === "home" && "bg-blue-50 border-blue-200",
+                        pattern.location === "other" && "bg-gray-50 border-gray-200"
+                      )}>
+                        <div className="flex items-center">
+                          <Avatar className={cn(
+                            "w-6 h-6 mr-2",
+                            pattern.location === "office" && "ring-1 ring-[#10b981]",
+                            pattern.location === "home" && "ring-1 ring-[#3b82f6]",
+                            pattern.location === "other" && "ring-1 ring-gray-400"
+                          )}>
+                            <AvatarImage src={pattern.avatarUrl || ""} alt={pattern.displayName} />
+                            <AvatarFallback className="text-[10px]">{getInitials(pattern.displayName)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <span className="text-sm font-medium">{pattern.displayName}</span>
+                            <span className="ml-2 text-xs">
+                              {pattern.location === "office" ? "Office" :
+                               pattern.location === "home" ? "Home" : "Other"}
+                            </span>
+                            {pattern.notes && <span className="ml-1 text-xs italic">({pattern.notes})</span>}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  }
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );

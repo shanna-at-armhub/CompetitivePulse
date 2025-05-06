@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { PlusIcon, Calendar, Filter, CalendarDays, Calendar as CalendarIcon, ChevronsUpDown } from "lucide-react";
+import { PlusIcon, Calendar, Filter, CalendarDays, Calendar as CalendarIcon, ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCalendar } from "@/hooks/use-calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkPattern } from "@shared/schema";
+import { format, addDays, subDays, addWeeks, subWeeks } from "date-fns";
 
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -193,11 +194,7 @@ function CalendarContent({
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => {
-                  const prevDay = new Date(currentDate);
-                  prevDay.setDate(prevDay.getDate() - 1);
-                  setCurrentDate(prevDay);
-                }}
+                onClick={() => setCurrentDate(subDays(currentDate, 1))}
               >
                 Previous Day
               </Button>
@@ -207,11 +204,7 @@ function CalendarContent({
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => {
-                  const nextDay = new Date(currentDate);
-                  nextDay.setDate(nextDay.getDate() + 1);
-                  setCurrentDate(nextDay);
-                }}
+                onClick={() => setCurrentDate(addDays(currentDate, 1))}
               >
                 Next Day
               </Button>
@@ -239,11 +232,7 @@ function CalendarContent({
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => {
-                  const prevWeek = new Date(currentDate);
-                  prevWeek.setDate(prevWeek.getDate() - 7);
-                  setCurrentDate(prevWeek);
-                }}
+                onClick={() => setCurrentDate(subWeeks(currentDate, 1))}
               >
                 Previous Week
               </Button>
@@ -256,11 +245,7 @@ function CalendarContent({
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => {
-                  const nextWeek = new Date(currentDate);
-                  nextWeek.setDate(nextWeek.getDate() + 7);
-                  setCurrentDate(nextWeek);
-                }}
+                onClick={() => setCurrentDate(addWeeks(currentDate, 1))}
               >
                 Next Week
               </Button>
