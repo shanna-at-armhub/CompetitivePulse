@@ -106,7 +106,14 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   // Mutations for work patterns
   const addWorkPatternMutation = useMutation({
     mutationFn: async (pattern: Omit<InsertWorkPattern, "userId">) => {
-      await apiRequest("POST", "/api/work-patterns", pattern);
+      console.log("Sending pattern data:", pattern);
+      const res = await apiRequest("POST", "/api/work-patterns", pattern);
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Server response error:", errorText);
+        throw new Error(`Failed to add work pattern: ${errorText}`);
+      }
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/work-patterns"] });
@@ -116,6 +123,7 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       });
     },
     onError: (error: Error) => {
+      console.error("Error details:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to add work pattern",
