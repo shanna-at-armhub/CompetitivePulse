@@ -104,16 +104,19 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Navigation */}
         <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
           {navigationItems.map((item) => (
-            <Link key={item.name} href={item.href} onClick={closeSidebarOnMobile}>
-              <a className={cn(
+            <Link 
+              key={item.name} 
+              href={item.href} 
+              onClick={closeSidebarOnMobile}
+              className={cn(
                 "flex items-center px-3 py-2 text-sm font-medium rounded-md",
                 item.current 
                   ? "bg-gray-100 text-primary"
                   : "text-gray-700 hover:bg-gray-100 hover:text-primary"
-              )}>
-                <item.icon className="h-5 w-5 mr-2" />
-                {item.name}
-              </a>
+              )}
+            >
+              <item.icon className="h-5 w-5 mr-2" />
+              {item.name}
             </Link>
           ))}
         </nav>

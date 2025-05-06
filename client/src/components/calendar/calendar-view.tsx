@@ -7,7 +7,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { PlusIcon, Filter, CalendarCheck } from "lucide-react";
 import { useCalendar } from "@/hooks/use-calendar";
-import { CalendarProvider } from "@/hooks/use-calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -16,13 +15,11 @@ export function CalendarView() {
   const [addModalOpen, setAddModalOpen] = useState(false);
 
   return (
-    <CalendarProvider>
-      <CalendarContent 
-        isAddModalOpen={addModalOpen}
-        onOpenAddModal={() => setAddModalOpen(true)}
-        onCloseAddModal={() => setAddModalOpen(false)}
-      />
-    </CalendarProvider>
+    <CalendarContent 
+      isAddModalOpen={addModalOpen}
+      onOpenAddModal={() => setAddModalOpen(true)}
+      onCloseAddModal={() => setAddModalOpen(false)}
+    />
   );
 }
 

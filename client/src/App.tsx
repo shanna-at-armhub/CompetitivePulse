@@ -8,6 +8,7 @@ import AuthPage from "@/pages/auth-page";
 import AdminPage from "@/pages/admin-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
+import { CalendarProvider } from "./hooks/use-calendar";
 
 function Router() {
   return (
@@ -24,8 +25,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router />
-        <Toaster />
+        <CalendarProvider>
+          <Router />
+          <Toaster />
+        </CalendarProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
