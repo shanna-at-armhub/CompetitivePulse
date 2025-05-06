@@ -180,10 +180,52 @@ function CalendarContent({
           </div>
         </div>
         
-        {/* Calendar Grid */}
+        {/* Calendar View */}
         {isLoading ? (
-          <CalendarSkeleton />
+          <CalendarSkeleton view={view as "month" | "week" | "day"} />
+        ) : view === "day" ? (
+          // Day view (list view like Outlook)
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            {calendarDays.length > 0 && calendarDays[0].date && (
+              <CalendarDay
+                date={calendarDays[0].date}
+                isCurrentMonth={true}
+                isToday={calendarDays[0].isToday}
+                workPatterns={calendarDays[0].workPatterns}
+                onClick={() => calendarDays[0].date && onOpenDetailModal(calendarDays[0].date)}
+                view="day"
+              />
+            )}
+          </div>
+        ) : view === "week" ? (
+          // Week view (7 days in a row)
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            {/* Weekday headers */}
+            <div className="grid grid-cols-7 gap-px bg-gray-200">
+              {weekdays.map((day) => (
+                <div key={day} className="bg-white px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase">
+                  {day}
+                </div>
+              ))}
+            </div>
+            
+            {/* Calendar days - only show the 7 days of the week */}
+            <div className="grid grid-cols-7 gap-px bg-gray-200">
+              {calendarDays.slice(0, 7).map((day, index) => (
+                <CalendarDay
+                  key={index}
+                  date={day.date}
+                  isCurrentMonth={day.isCurrentMonth}
+                  isToday={day.isToday}
+                  workPatterns={day.workPatterns}
+                  onClick={() => day.date && onOpenDetailModal(day.date)}
+                  view="week"
+                />
+              ))}
+            </div>
+          </div>
         ) : (
+          // Month view (traditional calendar grid)
           <div className="bg-white rounded-lg shadow overflow-hidden">
             {/* Weekday headers */}
             <div className="grid grid-cols-7 gap-px bg-gray-200">
@@ -204,6 +246,7 @@ function CalendarContent({
                   isToday={day.isToday}
                   workPatterns={day.workPatterns}
                   onClick={() => day.date && day.isCurrentMonth && onOpenDetailModal(day.date)}
+                  view="month"
                 />
               ))}
             </div>
@@ -251,7 +294,66 @@ function CalendarContent({
   );
 }
 
-function CalendarSkeleton() {
+function CalendarSkeleton({ view = "month" }: { view?: "month" | "week" | "day" }) {
+  // For day view
+  if (view === "day") {
+    return (
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="p-4 bg-gray-50 border-b">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-32 mt-2" />
+        </div>
+        
+        <div className="divide-y divide-gray-100">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="p-4">
+              <div className="flex items-center">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="ml-4 space-y-2 flex-1">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  
+  // For week view
+  if (view === "week") {
+    return (
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        {/* Weekday headers */}
+        <div className="grid grid-cols-7 gap-px bg-gray-200">
+          {weekdays.map((day) => (
+            <div key={day} className="bg-white px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase">
+              {day}
+            </div>
+          ))}
+        </div>
+        
+        {/* Calendar days skeleton - only 7 days for a week */}
+        <div className="grid grid-cols-7 gap-px bg-gray-200">
+          {Array.from({ length: 7 }).map((_, index) => (
+            <div key={index} className="min-h-[160px] bg-white p-2">
+              <div className="text-right">
+                <Skeleton className="h-4 w-4 ml-auto" />
+              </div>
+              <div className="mt-2 space-y-2">
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-6 w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  
+  // Default: month view
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       {/* Weekday headers */}

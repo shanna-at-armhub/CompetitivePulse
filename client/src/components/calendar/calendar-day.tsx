@@ -13,6 +13,7 @@ type CalendarDayProps = {
   isToday: boolean;
   workPatterns: WorkPattern[];
   onClick?: () => void;
+  view?: "month" | "week" | "day";
 };
 
 type PatternWithUser = {
@@ -30,7 +31,8 @@ export function CalendarDay({
   isCurrentMonth, 
   isToday, 
   workPatterns,
-  onClick
+  onClick,
+  view = "month"
 }: CalendarDayProps) {
   const { mode } = useCalendar();
   const { user } = useAuth();
@@ -91,11 +93,94 @@ export function CalendarDay({
   // Check if there's a public holiday
   const publicHoliday = processedPatterns.find(p => p.isPublicHoliday);
   
+  // Render a day view (detailed list view like Outlook)
+  if (view === "day") {
+    return (
+      <div className="bg-white rounded-md shadow-sm overflow-hidden">
+        <div className={cn(
+          "py-3 px-4 bg-gray-50 border-b flex items-center justify-between",
+          isToday && "bg-primary/10",
+          publicHoliday && "bg-red-100"
+        )}>
+          <div className="flex flex-col">
+            <span className="text-lg font-semibold">{format(date, "EEEE")}</span>
+            <span className="text-sm text-muted-foreground">{format(date, "MMMM d, yyyy")}</span>
+          </div>
+          {publicHoliday && (
+            <Badge variant="destructive" className="ml-auto">
+              {publicHoliday.notes || "Public Holiday"}
+            </Badge>
+          )}
+        </div>
+        
+        <div className="divide-y divide-gray-100">
+          {processedPatterns.length > 0 ? (
+            processedPatterns
+              .filter(p => !p.isPublicHoliday) // Skip public holidays as they're shown in the header
+              .map((pattern) => (
+                <div key={pattern.id} className="p-3 hover:bg-gray-50">
+                  <div className="flex items-center">
+                    <Avatar className={cn(
+                      "w-10 h-10 ring-2",
+                      pattern.location === "office" && "ring-[#10b981]",
+                      pattern.location === "home" && "ring-[#3b82f6]",
+                      pattern.location === "annual_leave" && "ring-[#f59e0b]",
+                      pattern.location === "personal_leave" && "ring-[#ef4444]",
+                      pattern.location === "other" && "ring-gray-400"
+                    )}>
+                      <AvatarImage 
+                        src={pattern.avatarUrl || ""} 
+                        alt={pattern.displayName} 
+                      />
+                      <AvatarFallback>
+                        {getInitials(pattern.displayName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="ml-3">
+                      <h4 className="font-medium">{pattern.displayName}</h4>
+                      <div className="flex items-center mt-1">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "rounded-sm font-normal",
+                            pattern.location === "office" && "bg-green-50 text-green-700 border-green-200",
+                            pattern.location === "home" && "bg-blue-50 text-blue-700 border-blue-200",
+                            pattern.location === "annual_leave" && "bg-amber-50 text-amber-700 border-amber-200",
+                            pattern.location === "personal_leave" && "bg-red-50 text-red-700 border-red-200",
+                            pattern.location === "other" && "bg-gray-50 text-gray-700 border-gray-200"
+                          )}
+                        >
+                          {pattern.location === "office" ? "Working from Office" :
+                           pattern.location === "home" ? "Working from Home" :
+                           pattern.location === "annual_leave" ? "Annual Leave" :
+                           pattern.location === "personal_leave" ? "Personal Leave" :
+                           pattern.location === "public_holiday" ? "Public Holiday" : "Other"}
+                        </Badge>
+                      </div>
+                      {pattern.notes && (
+                        <p className="mt-2 text-sm text-muted-foreground">{pattern.notes}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+          ) : !publicHoliday ? (
+            <div className="p-8 text-center text-muted-foreground">
+              <p>No work patterns scheduled for this day</p>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+  
+  // Render a month/week view (calendar grid cell)
   return (
     <TooltipProvider>
       <div 
         className={cn(
-          "min-h-[120px] bg-white p-2 transition-all",
+          "min-h-[120px] bg-white p-2 transition-all border",
+          view === "week" && "min-h-[160px]",
           !isCurrentMonth && "text-gray-300 opacity-70",
           isToday && "ring-2 ring-primary",
           publicHoliday && "bg-red-50",
