@@ -68,6 +68,7 @@ export const insertUserSchema = createInsertSchema(users, {
 
 export const insertWorkPatternSchema = createInsertSchema(workPatterns, {
   notes: (schema) => schema.optional(),
+  date: (schema) => z.string().or(z.date())
 }).omit({ createdAt: true });
 
 export const insertRecurringPatternSchema = createInsertSchema(recurringPatterns, {

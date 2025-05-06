@@ -33,13 +33,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
       const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
       
+      let patterns = [];
+      
       if (startDate && endDate) {
-        const patterns = await storage.getUserWorkPatternsInRange(userId!, startDate, endDate);
-        return res.json(patterns);
+        // Get user work patterns for the date range
+        patterns = await storage.getUserWorkPatternsInRange(userId!, startDate, endDate);
+        
+        // Get and add public holidays
+        const { getPublicHolidaysAsWorkPatterns } = await import('./services/holidays');
+        const publicHolidays = getPublicHolidaysAsWorkPatterns(startDate, endDate);
+        patterns = [...patterns, ...publicHolidays];
       } else {
-        const patterns = await storage.getUserWorkPatterns(userId!);
-        return res.json(patterns);
+        patterns = await storage.getUserWorkPatterns(userId!);
       }
+      
+      return res.json(patterns);
     } catch (error) {
       console.error("Error fetching work patterns:", error);
       return res.status(500).json({ message: "Failed to fetch work patterns" });
@@ -212,7 +220,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Start date and end date are required" });
       }
       
-      const patterns = await storage.getWorkPatternsInRange(startDate, endDate);
+      // Get work patterns for all users in this date range
+      let patterns = await storage.getWorkPatternsInRange(startDate, endDate);
+      
+      // Get public holidays
+      const { getPublicHolidaysAsWorkPatterns } = await import('./services/holidays');
+      const publicHolidays = getPublicHolidaysAsWorkPatterns(startDate, endDate);
+      patterns = [...patterns, ...publicHolidays];
       
       // Filter by location if specified
       const location = req.query.location as string | undefined;
@@ -220,7 +234,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? patterns.filter(pattern => pattern.location === location)
         : patterns;
       
-      return res.json(filteredPatterns);
+      // Add user details to each pattern
+      const patternsWithUserInfo = await Promise.all(
+        filteredPatterns.map(async (pattern) => {
+          // For public holidays or system-generated patterns
+          if (pattern.userId === 0) {
+            return {
+              ...pattern,
+              user: {
+                displayName: "Public Holiday",
+                avatarUrl: null
+              }
+            };
+          }
+          
+          // For regular user patterns
+          const user = await storage.getUser(pattern.userId);
+          return {
+            ...pattern,
+            user: user ? {
+              displayName: user.displayName,
+              avatarUrl: user.avatarUrl
+            } : null
+          };
+        })
+      );
+      
+      return res.json(patternsWithUserInfo);
     } catch (error) {
       console.error("Error fetching team work patterns:", error);
       return res.status(500).json({ message: "Failed to fetch team work patterns" });

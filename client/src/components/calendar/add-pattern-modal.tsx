@@ -23,7 +23,7 @@ export function AddPatternModal({ isOpen, onClose }: AddPatternModalProps) {
   const { addWorkPattern, addRecurringPattern } = useCalendar();
   const [patternType, setPatternType] = useState<"one_time" | "recurring">("one_time");
   const [date, setDate] = useState<Date>(new Date());
-  const [location, setLocation] = useState<"home" | "office" | "other">("office");
+  const [location, setLocation] = useState<"home" | "office" | "annual_leave" | "personal_leave" | "other">("office");
   const [notes, setNotes] = useState<string>("");
   
   // For recurring patterns
@@ -221,7 +221,7 @@ export function AddPatternModal({ isOpen, onClose }: AddPatternModalProps) {
             </Label>
             <Select 
               value={location} 
-              onValueChange={(value) => setLocation(value as "home" | "office" | "other")}
+              onValueChange={(value) => setLocation(value as "home" | "office" | "annual_leave" | "personal_leave" | "other")}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a location" />
@@ -229,6 +229,8 @@ export function AddPatternModal({ isOpen, onClose }: AddPatternModalProps) {
               <SelectContent>
                 <SelectItem value="office">Office</SelectItem>
                 <SelectItem value="home">Home</SelectItem>
+                <SelectItem value="annual_leave">Annual Leave</SelectItem>
+                <SelectItem value="personal_leave">Personal Leave</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
