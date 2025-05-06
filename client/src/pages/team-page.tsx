@@ -31,5 +31,11 @@ export default function TeamPage() {
     ); // Will redirect due to the useEffect above
   }
   
-  return <TeamView />;
+  return (
+    <div className="h-screen p-[10px] bg-gray-50">
+      <div className="h-full rounded-lg shadow-sm overflow-auto bg-white">
+        <TeamView />
+      </div>
+    </div>
+  );
 }
