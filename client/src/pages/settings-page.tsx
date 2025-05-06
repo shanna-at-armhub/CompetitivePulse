@@ -47,6 +47,14 @@ export default function SettingsPage() {
           <h1 className="text-3xl font-bold">Settings</h1>
           <p className="text-muted-foreground">Manage your profile and preferences</p>
         </div>
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-2"
+          onClick={() => window.location.href = "/"}
+        >
+          <Calendar className="h-4 w-4" />
+          <span>Back to Calendar</span>
+        </Button>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-4">
@@ -256,6 +264,7 @@ function CalendarEntriesSection() {
   const [selectAll, setSelectAll] = useState(false);
   const { toast } = useToast();
   const [refreshPublicHolidays, setRefreshPublicHolidays] = useState(false);
+  const [showAddEntryModal, setShowAddEntryModal] = useState(false);
 
   // Handle select all checkbox
   const handleSelectAll = (checked: boolean) => {
@@ -369,6 +378,15 @@ function CalendarEntriesSection() {
             <CardDescription>Manage your work patterns and recurring entries</CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            <Button 
+              variant="default" 
+              size="sm"
+              onClick={() => setShowAddEntryModal(true)}
+              className="flex items-center gap-1"
+            >
+              <Calendar className="h-4 w-4" />
+              Add Entry
+            </Button>
             <Button 
               variant="outline" 
               size="sm"
@@ -586,6 +604,33 @@ function CalendarEntriesSection() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Add Entry Modal */}
+      <Dialog open={showAddEntryModal} onOpenChange={setShowAddEntryModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add Calendar Entry</DialogTitle>
+            <DialogDescription>
+              Add a new one-time or recurring work pattern to your calendar.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Tabs defaultValue="one-time" className="mt-4">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="one-time">One-time Entry</TabsTrigger>
+              <TabsTrigger value="recurring">Recurring Pattern</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="one-time" className="space-y-4 py-4">
+              <OneTimeEntryForm onClose={() => setShowAddEntryModal(false)} />
+            </TabsContent>
+            
+            <TabsContent value="recurring" className="space-y-4 py-4">
+              <RecurringPatternForm onClose={() => setShowAddEntryModal(false)} />
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

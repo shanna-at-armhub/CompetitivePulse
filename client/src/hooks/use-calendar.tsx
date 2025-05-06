@@ -3,7 +3,19 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { WorkPattern, RecurringPattern, InsertWorkPattern, InsertRecurringPattern } from "@shared/schema";
-import { format, startOfMonth, endOfMonth, addMonths, getDay, getDaysInMonth } from "date-fns";
+import { 
+  format, 
+  startOfMonth, 
+  endOfMonth, 
+  addMonths, 
+  getDay, 
+  getDaysInMonth,
+  addDays,
+  startOfWeek,
+  endOfWeek,
+  startOfDay,
+  endOfDay
+} from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
 type CalendarViewType = "month" | "week" | "day";
@@ -62,9 +74,20 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<CalendarModeType>("personal");
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
   
-  // Calculate date range for queries
-  const startDate = startOfMonth(currentDate);
-  const endDate = endOfMonth(currentDate);
+  // Calculate date range for queries based on view
+  let startDate: Date;
+  let endDate: Date;
+  
+  if (view === "month") {
+    startDate = startOfMonth(currentDate);
+    endDate = endOfMonth(currentDate);
+  } else if (view === "week") {
+    startDate = startOfWeek(currentDate, { weekStartsOn: 1 }); // Monday as week start
+    endDate = endOfWeek(currentDate, { weekStartsOn: 1 });
+  } else { // day view
+    startDate = startOfDay(currentDate);
+    endDate = endOfDay(currentDate);
+  }
   
   // Fetch personal work patterns
   const {
@@ -233,37 +256,20 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     },
   });
   
-  // Generate calendar days for the current month view
+  // Generate calendar days based on the current view (month, week, or day)
   const generateCalendarDays = (): CalendarDay[] => {
     const today = new Date();
-    const daysInMonth = getDaysInMonth(currentDate);
-    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const startDay = getDay(firstDayOfMonth);
-    
     const days: CalendarDay[] = [];
-    
-    // Add days from previous month to fill the first week
-    const prevMonth = addMonths(firstDayOfMonth, -1);
-    const daysInPrevMonth = getDaysInMonth(prevMonth);
-    
-    for (let i = startDay - 1; i >= 0; i--) {
-      const date = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), daysInPrevMonth - i);
-      days.push({
-        date,
-        isCurrentMonth: false,
-        isToday: false,
-        workPatterns: [],
-      });
-    }
-    
-    // Add days from current month
-    for (let i = 1; i <= daysInMonth; i++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
+
+    // Helper to create a day object with patterns
+    const createDayObject = (date: Date): CalendarDay => {
       const isToday = (
         date.getDate() === today.getDate() &&
         date.getMonth() === today.getMonth() &&
         date.getFullYear() === today.getFullYear()
       );
+      
+      const isCurrentMonth = date.getMonth() === currentDate.getMonth();
       
       // Get one-time work patterns for this day
       const oneTimePatterns = mode === "personal"
@@ -284,6 +290,11 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
             );
           });
       
+      // Apply location filter if it's set
+      const filteredOneTimePatterns = locationFilter 
+        ? oneTimePatterns.filter(pattern => pattern.location === locationFilter)
+        : oneTimePatterns;
+      
       // Get recurring patterns for this day
       const weekday = date.getDay(); // 0: Sunday, 1: Monday, ..., 6: Saturday
       
@@ -302,8 +313,13 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
           })
         : []; // For team mode, we would need to fetch recurring patterns for all team members
       
+      // Apply location filter to recurring patterns if it's set
+      const filteredRecurringForDay = locationFilter
+        ? recurringForDay.filter(pattern => pattern.location === locationFilter)
+        : recurringForDay;
+      
       // Convert recurring patterns to work patterns format for display
-      const recurringAsWorkPatterns = recurringForDay.map(pattern => ({
+      const recurringAsWorkPatterns = filteredRecurringForDay.map(pattern => ({
         id: -pattern.id, // Use negative ID to avoid conflicts with real work patterns
         userId: pattern.userId,
         date: date,
@@ -313,28 +329,59 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       }));
       
       // Combine both types of patterns
-      const dayPatterns = [...oneTimePatterns, ...recurringAsWorkPatterns];
+      const dayPatterns = [...filteredOneTimePatterns, ...recurringAsWorkPatterns];
       
-      days.push({
+      return {
         date,
-        isCurrentMonth: true,
+        isCurrentMonth,
         isToday,
         workPatterns: dayPatterns,
-      });
-    }
+      };
+    };
     
-    // Add days from next month to complete the grid (total of 42 cells for 6 weeks)
-    const remainingDays = 42 - days.length;
-    const nextMonth = addMonths(firstDayOfMonth, 1);
-    
-    for (let i = 1; i <= remainingDays; i++) {
-      const date = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), i);
-      days.push({
-        date,
-        isCurrentMonth: false,
-        isToday: false,
-        workPatterns: [],
-      });
+    // Handle different views
+    if (view === "month") {
+      // For month view, show entire month grid (6 weeks)
+      const daysInMonth = getDaysInMonth(currentDate);
+      const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const startDay = getDay(firstDayOfMonth);
+      
+      // Add days from previous month to fill the first week
+      const prevMonth = addMonths(firstDayOfMonth, -1);
+      const daysInPrevMonth = getDaysInMonth(prevMonth);
+      
+      for (let i = startDay - 1; i >= 0; i--) {
+        const date = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), daysInPrevMonth - i);
+        days.push(createDayObject(date));
+      }
+      
+      // Add days from current month
+      for (let i = 1; i <= daysInMonth; i++) {
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
+        days.push(createDayObject(date));
+      }
+      
+      // Add days from next month to complete the grid (total of 42 cells for 6 weeks)
+      const remainingDays = 42 - days.length;
+      const nextMonth = addMonths(firstDayOfMonth, 1);
+      
+      for (let i = 1; i <= remainingDays; i++) {
+        const date = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), i);
+        days.push(createDayObject(date));
+      }
+    } 
+    else if (view === "week") {
+      // For week view, show 7 days starting from Monday
+      const startOfWeekDate = startOfWeek(currentDate, { weekStartsOn: 1 }); // Start on Monday
+      
+      for (let i = 0; i < 7; i++) {
+        const date = addDays(startOfWeekDate, i);
+        days.push(createDayObject(date));
+      }
+    } 
+    else { // day view
+      // For day view, show just the current day
+      days.push(createDayObject(currentDate));
     }
     
     return days;
