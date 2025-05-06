@@ -1,24 +1,49 @@
 import { useState } from "react";
 import { CalendarDay } from "./calendar-day";
 import { AddPatternModal } from "./add-pattern-modal";
+import { EntryDetailModal } from "./entry-detail-modal";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { PlusIcon, Filter, CalendarCheck } from "lucide-react";
+import { PlusIcon, Calendar, Filter, CalendarDays, Calendar as CalendarIcon, ChevronsUpDown } from "lucide-react";
 import { useCalendar } from "@/hooks/use-calendar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WorkPattern } from "@shared/schema";
 
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function CalendarView() {
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [patternToEdit, setPatternToEdit] = useState<WorkPattern | null>(null);
+
+  const handleSelectDay = (date: Date) => {
+    setSelectedDate(date);
+    setDetailModalOpen(true);
+  };
+
+  const handleEditPattern = (pattern: WorkPattern) => {
+    setPatternToEdit(pattern);
+    setDetailModalOpen(false);
+    setAddModalOpen(true);
+  };
 
   return (
     <CalendarContent 
       isAddModalOpen={addModalOpen}
       onOpenAddModal={() => setAddModalOpen(true)}
-      onCloseAddModal={() => setAddModalOpen(false)}
+      onCloseAddModal={() => {
+        setAddModalOpen(false);
+        setPatternToEdit(null);
+      }}
+      isDetailModalOpen={detailModalOpen}
+      onOpenDetailModal={handleSelectDay}
+      onCloseDetailModal={() => setDetailModalOpen(false)}
+      selectedDate={selectedDate}
+      patternToEdit={patternToEdit}
+      onEditPattern={handleEditPattern}
     />
   );
 }
@@ -26,25 +51,35 @@ export function CalendarView() {
 function CalendarContent({ 
   isAddModalOpen, 
   onOpenAddModal, 
-  onCloseAddModal 
+  onCloseAddModal,
+  isDetailModalOpen,
+  onOpenDetailModal,
+  onCloseDetailModal,
+  selectedDate,
+  patternToEdit,
+  onEditPattern
 }: { 
   isAddModalOpen: boolean,
   onOpenAddModal: () => void,
-  onCloseAddModal: () => void
+  onCloseAddModal: () => void,
+  isDetailModalOpen: boolean,
+  onOpenDetailModal: (date: Date) => void,
+  onCloseDetailModal: () => void,
+  selectedDate: Date | null,
+  patternToEdit: WorkPattern | null,
+  onEditPattern: (pattern: WorkPattern) => void
 }) {
   const { 
     calendarDays, 
     mode, 
-    setMode, 
+    setMode,
+    view,
+    setView,
     locationFilter, 
     setLocationFilter,
-    isLoading
+    isLoading,
+    recurringPatterns
   } = useCalendar();
-  
-  const handleDayClick = (date: Date) => {
-    // In a real app, you might want to navigate to day view or open edit modal
-    console.log("Day clicked:", date);
-  };
   
   return (
     <main className="flex-1 overflow-y-auto">
@@ -53,18 +88,37 @@ function CalendarContent({
         <div className="mb-6 flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
           {/* View controls */}
           <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-            <div className="flex items-center">
-              <Label className="mr-2 text-sm font-medium text-gray-700">View:</Label>
-              <Select defaultValue="team">
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Select view" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="personal">My calendar</SelectItem>
-                  <SelectItem value="team">Team calendar</SelectItem>
-                  <SelectItem value="department">Department</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center space-x-2">
+              <Label className="text-sm font-medium text-gray-700">Calendar View:</Label>
+              <div className="flex rounded-md border border-gray-200">
+                <Button 
+                  variant={view === "month" ? "default" : "ghost"} 
+                  size="sm"
+                  onClick={() => setView("month")}
+                  className="rounded-r-none"
+                >
+                  <CalendarIcon className="h-4 w-4 mr-1" />
+                  Month
+                </Button>
+                <Button 
+                  variant={view === "week" ? "default" : "ghost"} 
+                  size="sm"
+                  onClick={() => setView("week")}
+                  className="rounded-none border-x"
+                >
+                  <CalendarDays className="h-4 w-4 mr-1" />
+                  Week
+                </Button>
+                <Button 
+                  variant={view === "day" ? "default" : "ghost"} 
+                  size="sm"
+                  onClick={() => setView("day")}
+                  className="rounded-l-none"
+                >
+                  <Calendar className="h-4 w-4 mr-1" />
+                  Day
+                </Button>
+              </div>
             </div>
             
             {/* Toggle between personal/team view */}
@@ -149,7 +203,7 @@ function CalendarContent({
                   isCurrentMonth={day.isCurrentMonth}
                   isToday={day.isToday}
                   workPatterns={day.workPatterns}
-                  onClick={() => day.date && day.isCurrentMonth && handleDayClick(day.date)}
+                  onClick={() => day.date && day.isCurrentMonth && onOpenDetailModal(day.date)}
                 />
               ))}
             </div>
@@ -172,7 +226,27 @@ function CalendarContent({
       <AddPatternModal 
         isOpen={isAddModalOpen}
         onClose={onCloseAddModal}
+        initialPattern={patternToEdit}
       />
+      
+      {/* Entry Detail Modal */}
+      {selectedDate && (
+        <EntryDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={onCloseDetailModal}
+          date={selectedDate}
+          patterns={selectedDate ? 
+            calendarDays.find(day => 
+              day.date?.getDate() === selectedDate.getDate() && 
+              day.date?.getMonth() === selectedDate.getMonth() && 
+              day.date?.getFullYear() === selectedDate.getFullYear()
+            )?.workPatterns || [] 
+            : []
+          }
+          recurringPatterns={recurringPatterns}
+          onEditPattern={onEditPattern}
+        />
+      )}
     </main>
   );
 }

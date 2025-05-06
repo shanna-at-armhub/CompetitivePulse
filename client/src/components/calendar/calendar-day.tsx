@@ -143,9 +143,24 @@ export function CalendarDay({
                           {getInitials(pattern.displayName)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="ml-1 text-xs text-gray-700 truncate">
-                        {pattern.displayName}
-                      </span>
+                      <div className="ml-1 flex flex-col">
+                        <span className="text-xs text-gray-700 truncate">
+                          {pattern.displayName}
+                        </span>
+                        <span className="text-[10px] font-medium truncate" style={{
+                          color: pattern.location === "office" ? "#059669" : 
+                                 pattern.location === "home" ? "#2563eb" :
+                                 pattern.location === "annual_leave" ? "#d97706" :
+                                 pattern.location === "personal_leave" ? "#dc2626" : 
+                                 "#6b7280"
+                        }}>
+                          {pattern.location === "office" ? "Office" :
+                           pattern.location === "home" ? "Home" :
+                           pattern.location === "annual_leave" ? "Annual Leave" :
+                           pattern.location === "personal_leave" ? "Personal Leave" :
+                           pattern.location === "public_holiday" ? "Public Holiday" : "Other"}
+                        </span>
+                      </div>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>

@@ -18,16 +18,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 type AddPatternModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  initialPattern?: WorkPattern | null;
 };
 
-export function AddPatternModal({ isOpen, onClose }: AddPatternModalProps) {
-  const { addWorkPattern, addRecurringPattern } = useCalendar();
+export function AddPatternModal({ isOpen, onClose, initialPattern }: AddPatternModalProps) {
+  const { addWorkPattern, addRecurringPattern, updateWorkPattern } = useCalendar();
   const [patternType, setPatternType] = useState<"one_time" | "recurring">("one_time");
   const [date, setDate] = useState<Date>(new Date());
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [useDateRange, setUseDateRange] = useState<boolean>(false);
   const [location, setLocation] = useState<"home" | "office" | "annual_leave" | "personal_leave" | "other">("office");
   const [notes, setNotes] = useState<string>("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedPatternId, setEditedPatternId] = useState<number | null>(null);
   
   // For recurring patterns
   const [monday, setMonday] = useState<boolean>(true);
