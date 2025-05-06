@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -6,10 +6,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, addDays, eachDayOfInterval } from "date-fns";
-import { CalendarIcon, CalendarDaysIcon } from "lucide-react";
+import { CalendarIcon, CalendarDaysIcon, PencilIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { locationEnum, patternTypeEnum } from "@shared/schema";
+import { locationEnum, patternTypeEnum, WorkPattern } from "@shared/schema";
 import { useCalendar } from "@/hooks/use-calendar";
 import { Toggle } from "@/components/ui/toggle";
 import { cn } from "@/lib/utils";
@@ -27,10 +27,33 @@ export function AddPatternModal({ isOpen, onClose, initialPattern }: AddPatternM
   const [date, setDate] = useState<Date>(new Date());
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [useDateRange, setUseDateRange] = useState<boolean>(false);
-  const [location, setLocation] = useState<"home" | "office" | "annual_leave" | "personal_leave" | "other">("office");
+  const [location, setLocation] = useState<"home" | "office" | "annual_leave" | "personal_leave" | "public_holiday" | "other">("office");
   const [notes, setNotes] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
   const [editedPatternId, setEditedPatternId] = useState<number | null>(null);
+  
+  // Initialize form with edit values when initialPattern changes
+  useEffect(() => {
+    if (initialPattern) {
+      setIsEditing(true);
+      setEditedPatternId(initialPattern.id);
+      setPatternType("one_time"); // Currently we only edit one-time patterns
+      
+      // Convert string date to Date object if necessary
+      const patternDate = typeof initialPattern.date === 'string' 
+        ? new Date(initialPattern.date) 
+        : initialPattern.date;
+      
+      setDate(patternDate);
+      setLocation(initialPattern.location);
+      setNotes(initialPattern.notes || "");
+      setUseDateRange(false);
+    } else {
+      // Reset editing state if no initialPattern
+      setIsEditing(false);
+      setEditedPatternId(null);
+    }
+  }, [initialPattern]);
   
   // For recurring patterns
   const [monday, setMonday] = useState<boolean>(true);
@@ -63,72 +86,78 @@ export function AddPatternModal({ isOpen, onClose, initialPattern }: AddPatternM
     e.preventDefault();
     
     try {
-      console.log("Submitting pattern form:", { 
-        patternType, 
-        date, 
-        endDate, 
-        useDateRange, 
-        location, 
-        notes 
-      });
+      // Clean date to prevent serialization issues
+      const cleanDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
       
-      if (patternType === "one_time") {
-        // If using date range, create entries for each day in the range
-        if (useDateRange && endDate) {
-          console.log(`Creating entries for date range: ${date.toDateString()} to ${endDate.toDateString()}`);
-          
-          // Get all dates in the range
-          const dateRange = eachDayOfInterval({
-            start: date,
-            end: endDate
-          });
-          
-          console.log(`Total days in range: ${dateRange.length}`);
-          
-          // Create a work pattern for each date
-          const promises = dateRange.map(async (currentDate) => {
-            const cleanDate = new Date(
-              currentDate.getFullYear(), 
-              currentDate.getMonth(), 
-              currentDate.getDate()
-            );
+      // If editing an existing pattern
+      if (isEditing && editedPatternId) {
+        console.log(`Updating pattern ID ${editedPatternId}`);
+        
+        await updateWorkPattern(editedPatternId, {
+          date: cleanDate,
+          location,
+          notes: notes || null,
+        });
+      }
+      // Creating a new pattern
+      else {
+        console.log("Creating new pattern");
+        
+        if (patternType === "one_time") {
+          // If using date range, create entries for each day in the range
+          if (useDateRange && endDate) {
+            console.log(`Creating entries for date range: ${date.toDateString()} to ${endDate.toDateString()}`);
             
-            console.log(`Creating pattern for date: ${cleanDate.toDateString()}`);
+            // Get all dates in the range
+            const dateRange = eachDayOfInterval({
+              start: date,
+              end: endDate
+            });
+            
+            console.log(`Total days in range: ${dateRange.length}`);
+            
+            // Create a work pattern for each date
+            const promises = dateRange.map(async (currentDate) => {
+              const rangeDayCleanDate = new Date(
+                currentDate.getFullYear(), 
+                currentDate.getMonth(), 
+                currentDate.getDate()
+              );
+              
+              console.log(`Creating pattern for date: ${rangeDayCleanDate.toDateString()}`);
+              
+              await addWorkPattern({
+                date: rangeDayCleanDate,
+                location,
+                notes: notes || null,
+              });
+            });
+            
+            await Promise.all(promises);
+          } 
+          // Otherwise just create a single entry
+          else {
+            console.log("Creating single entry for date:", cleanDate.toISOString());
             
             await addWorkPattern({
               date: cleanDate,
               location,
-              notes: notes || null,
+              notes: notes || null, // Ensure empty string becomes null
             });
-          });
-          
-          await Promise.all(promises);
-        } 
-        // Otherwise just create a single entry
-        else {
-          // Ensure we have a valid date - create a clean date object
-          // This prevents issues with date serialization
-          const cleanDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-          console.log("Using clean date:", cleanDate, cleanDate.toISOString());
-          
-          await addWorkPattern({
-            date: cleanDate,
+          }
+        } else {
+          await addRecurringPattern({
             location,
+            monday,
+            tuesday,
+            wednesday,
+            thursday,
+            friday,
+            saturday,
+            sunday,
             notes: notes || null, // Ensure empty string becomes null
           });
         }
-      } else {
-        await addRecurringPattern({
-          location,
-          monday,
-          tuesday,
-          wednesday,
-          thursday,
-          friday,
-          saturday,
-          sunday,
-          notes: notes || null, // Ensure empty string becomes null
-        });
       }
       
       resetForm();
@@ -151,12 +180,14 @@ export function AddPatternModal({ isOpen, onClose, initialPattern }: AddPatternM
         <DialogHeader>
           <div className="flex items-start">
             <div className="mr-4 p-2 rounded-full bg-primary/10">
-              <CalendarIcon className="h-6 w-6 text-primary" />
+              {isEditing ? <PencilIcon className="h-6 w-6 text-primary" /> : <CalendarIcon className="h-6 w-6 text-primary" />}
             </div>
             <div>
-              <DialogTitle className="text-lg">Add Work Pattern</DialogTitle>
+              <DialogTitle className="text-lg">{isEditing ? "Edit Work Pattern" : "Add Work Pattern"}</DialogTitle>
               <DialogDescription className="mt-1">
-                Set your regular work pattern for specific days or create a recurring schedule.
+                {isEditing 
+                  ? "Edit your work pattern details for this date." 
+                  : "Set your regular work pattern for specific days or create a recurring schedule."}
               </DialogDescription>
             </div>
           </div>
@@ -333,7 +364,7 @@ export function AddPatternModal({ isOpen, onClose, initialPattern }: AddPatternM
             </Label>
             <Select 
               value={location} 
-              onValueChange={(value) => setLocation(value as "home" | "office" | "annual_leave" | "personal_leave" | "other")}
+              onValueChange={(value) => setLocation(value as "home" | "office" | "annual_leave" | "personal_leave" | "public_holiday" | "other")}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a location" />
@@ -343,6 +374,7 @@ export function AddPatternModal({ isOpen, onClose, initialPattern }: AddPatternM
                 <SelectItem value="home">Home</SelectItem>
                 <SelectItem value="annual_leave">Annual Leave</SelectItem>
                 <SelectItem value="personal_leave">Personal Leave</SelectItem>
+                <SelectItem value="public_holiday">Public Holiday</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>

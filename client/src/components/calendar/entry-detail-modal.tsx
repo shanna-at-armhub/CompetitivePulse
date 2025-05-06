@@ -1,30 +1,24 @@
 import { useState } from "react";
-import { format } from "date-fns";
-import { 
-  Dialog, 
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format } from "date-fns";
+import { Calendar, CalendarIcon, Trash2, Edit, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, CalendarIcon } from "lucide-react";
 import { WorkPattern, RecurringPattern } from "@shared/schema";
 import { useCalendar } from "@/hooks/use-calendar";
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 type EntryDetailModalProps = {
   isOpen: boolean;
@@ -39,17 +33,43 @@ export function EntryDetailModal({
   isOpen, 
   onClose, 
   date, 
-  patterns, 
+  patterns,
   recurringPatterns,
-  onEditPattern,
+  onEditPattern
 }: EntryDetailModalProps) {
   const { deleteWorkPattern, deleteRecurringPattern } = useCalendar();
-  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
-  const [patternToDelete, setPatternToDelete] = useState<{id: number, type: 'one-time' | 'recurring'} | null>(null);
+  const [activeTab, setActiveTab] = useState<"one-time" | "recurring">("one-time");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [patternToDelete, setPatternToDelete] = useState<{ id: number, type: "one-time" | "recurring" } | null>(null);
+
+  // Handle deletion confirmation
+  const handleDeleteClick = (id: number, type: "one-time" | "recurring") => {
+    setPatternToDelete({ id, type });
+    setDeleteConfirmOpen(true);
+  };
+
+  // Process the actual deletion
+  const handleConfirmDelete = async () => {
+    if (!patternToDelete) return;
+    
+    try {
+      if (patternToDelete.type === "one-time") {
+        await deleteWorkPattern(patternToDelete.id);
+      } else {
+        await deleteRecurringPattern(patternToDelete.id);
+      }
+      setDeleteConfirmOpen(false);
+      setPatternToDelete(null);
+    } catch (error) {
+      console.error("Error deleting pattern:", error);
+    }
+  };
   
-  // Filter recurring patterns to show only those active on this day of the week
-  const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-  const activeRecurringPatterns = recurringPatterns.filter(pattern => {
+  // Get day of week for the selected date
+  const dayOfWeek = date.getDay(); // 0-6, where 0 is Sunday
+  
+  // Filter recurring patterns that apply to this day of week
+  const applicableRecurringPatterns = recurringPatterns.filter(pattern => {
     switch (dayOfWeek) {
       case 0: return pattern.sunday;
       case 1: return pattern.monday;
@@ -62,198 +82,229 @@ export function EntryDetailModal({
     }
   });
   
-  const locationLabel = (location: string) => {
+  // Get color based on location
+  const getLocationColor = (location: string) => {
     switch (location) {
-      case 'home': return 'Home';
-      case 'office': return 'Office';
-      case 'annual_leave': return 'Annual Leave';
-      case 'personal_leave': return 'Personal Leave';
-      case 'public_holiday': return 'Public Holiday';
-      case 'other': return 'Other';
-      default: return location;
+      case "office": return "bg-emerald-100 text-emerald-800 border-emerald-200";
+      case "home": return "bg-blue-100 text-blue-800 border-blue-200";
+      case "annual_leave": return "bg-amber-100 text-amber-800 border-amber-200";
+      case "personal_leave": return "bg-red-100 text-red-800 border-red-200";
+      case "public_holiday": return "bg-purple-100 text-purple-800 border-purple-200";
+      default: return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
   
-  const locationColor = (location: string) => {
+  // Get readable location name
+  const getLocationName = (location: string) => {
     switch (location) {
-      case 'home': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case 'office': return 'bg-sky-100 text-sky-800 border-sky-200';
-      case 'annual_leave': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'personal_leave': return 'bg-rose-100 text-rose-800 border-rose-200';
-      case 'public_holiday': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'other': return 'bg-slate-100 text-slate-800 border-slate-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case "office": return "Office";
+      case "home": return "Home";
+      case "annual_leave": return "Annual Leave";
+      case "personal_leave": return "Personal Leave";
+      case "public_holiday": return "Public Holiday";
+      default: return "Other";
     }
   };
-  
-  const handleDelete = async () => {
-    if (!patternToDelete) return;
-    
-    try {
-      if (patternToDelete.type === 'one-time') {
-        await deleteWorkPattern(patternToDelete.id);
-      } else {
-        await deleteRecurringPattern(patternToDelete.id);
-      }
-      setIsDeleteAlertOpen(false);
-      setPatternToDelete(null);
-    } catch (error) {
-      console.error("Error deleting pattern:", error);
-    }
-  };
-  
-  const confirmDelete = (id: number, type: 'one-time' | 'recurring') => {
-    setPatternToDelete({ id, type });
-    setIsDeleteAlertOpen(true);
-  };
-  
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <div className="flex items-start">
+            <div className="flex items-start mb-4">
               <div className="mr-4 p-2 rounded-full bg-primary/10">
-                <CalendarIcon className="h-6 w-6 text-primary" />
+                <Calendar className="h-6 w-6 text-primary" />
               </div>
               <div>
                 <DialogTitle className="text-lg">
-                  {format(date, "EEEE, MMMM do, yyyy")}
+                  {date && format(date, "EEEE, MMMM d, yyyy")}
                 </DialogTitle>
                 <DialogDescription className="mt-1">
-                  Work pattern details for this date
+                  View and manage work patterns for this date.
                 </DialogDescription>
               </div>
             </div>
-          </DialogHeader>
-          
-          <Tabs defaultValue="one-time" className="mt-4">
-            <TabsList className="w-full">
-              <TabsTrigger value="one-time" className="flex-1">One-time Entries</TabsTrigger>
-              <TabsTrigger value="recurring" className="flex-1">Recurring Patterns</TabsTrigger>
-            </TabsList>
             
-            <TabsContent value="one-time" className="mt-4">
-              {patterns.length > 0 ? (
-                <ScrollArea className="h-[300px] rounded-md border p-4">
-                  <div className="space-y-4">
-                    {patterns.map(pattern => (
-                      <div key={pattern.id} className="rounded-md border p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <Badge 
-                            variant="outline" 
-                            className={`${locationColor(pattern.location)}`}
-                          >
-                            {locationLabel(pattern.location)}
-                          </Badge>
-                          <div className="flex space-x-1">
+            <Tabs defaultValue="one-time" onValueChange={(value) => setActiveTab(value as "one-time" | "recurring")}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="one-time">One-time Entries</TabsTrigger>
+                <TabsTrigger value="recurring">Recurring Patterns</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="one-time" className="mt-4">
+                <div className="space-y-4">
+                  {patterns.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <CalendarIcon className="mx-auto h-12 w-12 text-muted-foreground/50 mb-3" />
+                      <p className="mb-1">No entries for this date</p>
+                      <p className="text-sm">
+                        Click the "+" button to add a work pattern for this date.
+                      </p>
+                    </div>
+                  ) : (
+                    <ScrollArea className="max-h-[300px]">
+                      {patterns.map((pattern) => (
+                        <div 
+                          key={pattern.id} 
+                          className="p-4 border rounded-lg mb-3 shadow-sm relative group"
+                        >
+                          <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8" 
+                              className="h-8 w-8"
                               onClick={() => onEditPattern(pattern)}
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Edit className="h-4 w-4" />
                             </Button>
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 text-destructive" 
-                              onClick={() => confirmDelete(pattern.id, 'one-time')}
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteClick(pattern.id, "one-time")}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
-                        </div>
-                        {pattern.notes && (
-                          <div className="mt-2 text-sm text-muted-foreground">
-                            <p className="font-medium text-foreground">Notes:</p>
-                            <p>{pattern.notes}</p>
+                          
+                          <div className="flex items-center flex-wrap gap-2 mb-2">
+                            <Badge variant="outline" className={cn("font-normal", getLocationColor(pattern.location))}>
+                              {getLocationName(pattern.location)}
+                            </Badge>
                           </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No one-time entries for this date.</p>
+                          
+                          {pattern.notes && (
+                            <div className="mt-2 text-sm text-gray-600">
+                              <p>{pattern.notes}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </ScrollArea>
+                  )}
                 </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="recurring" className="mt-4">
-              {activeRecurringPatterns.length > 0 ? (
-                <ScrollArea className="h-[300px] rounded-md border p-4">
-                  <div className="space-y-4">
-                    {activeRecurringPatterns.map(pattern => (
-                      <div key={pattern.id} className="rounded-md border p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <Badge 
-                            variant="outline" 
-                            className={`${locationColor(pattern.location)}`}
-                          >
-                            {locationLabel(pattern.location)}
-                          </Badge>
-                          <div className="flex space-x-1">
+              </TabsContent>
+              
+              <TabsContent value="recurring" className="mt-4">
+                <div className="space-y-4">
+                  {applicableRecurringPatterns.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <CalendarIcon className="mx-auto h-12 w-12 text-muted-foreground/50 mb-3" />
+                      <p className="mb-1">No recurring patterns for this day</p>
+                      <p className="text-sm">
+                        Click the "+" button to add a recurring pattern that includes this day.
+                      </p>
+                    </div>
+                  ) : (
+                    <ScrollArea className="max-h-[300px]">
+                      {applicableRecurringPatterns.map((pattern) => (
+                        <div 
+                          key={pattern.id} 
+                          className="p-4 border rounded-lg mb-3 shadow-sm relative group"
+                        >
+                          <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 text-destructive" 
-                              onClick={() => confirmDelete(pattern.id, 'recurring')}
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteClick(pattern.id, "recurring")}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
-                        </div>
-                        
-                        <div className="mt-2 text-sm grid grid-cols-7 gap-1">
-                          <div className={`text-center rounded-full w-6 h-6 ${pattern.sunday ? 'bg-primary/20 font-medium' : 'bg-muted'}`}>S</div>
-                          <div className={`text-center rounded-full w-6 h-6 ${pattern.monday ? 'bg-primary/20 font-medium' : 'bg-muted'}`}>M</div>
-                          <div className={`text-center rounded-full w-6 h-6 ${pattern.tuesday ? 'bg-primary/20 font-medium' : 'bg-muted'}`}>T</div>
-                          <div className={`text-center rounded-full w-6 h-6 ${pattern.wednesday ? 'bg-primary/20 font-medium' : 'bg-muted'}`}>W</div>
-                          <div className={`text-center rounded-full w-6 h-6 ${pattern.thursday ? 'bg-primary/20 font-medium' : 'bg-muted'}`}>T</div>
-                          <div className={`text-center rounded-full w-6 h-6 ${pattern.friday ? 'bg-primary/20 font-medium' : 'bg-muted'}`}>F</div>
-                          <div className={`text-center rounded-full w-6 h-6 ${pattern.saturday ? 'bg-primary/20 font-medium' : 'bg-muted'}`}>S</div>
-                        </div>
-                        
-                        {pattern.notes && (
-                          <div className="mt-3 text-sm text-muted-foreground">
-                            <p className="font-medium text-foreground">Notes:</p>
-                            <p>{pattern.notes}</p>
+                          
+                          <div className="flex items-center flex-wrap gap-2 mb-2">
+                            <Badge variant="outline" className={cn("font-normal", getLocationColor(pattern.location))}>
+                              {getLocationName(pattern.location)}
+                            </Badge>
+                            <Badge variant="outline" className="font-normal">
+                              Recurring
+                            </Badge>
                           </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No recurring patterns active on this day.</p>
+                          
+                          <div className="mt-2 text-sm text-gray-700">
+                            <div className="mb-1 font-medium">Days:</div>
+                            <div className="flex gap-1">
+                              <Badge 
+                                variant={pattern.monday ? "default" : "outline"} 
+                                className="w-7 h-7 rounded-full flex items-center justify-center"
+                              >
+                                M
+                              </Badge>
+                              <Badge 
+                                variant={pattern.tuesday ? "default" : "outline"} 
+                                className="w-7 h-7 rounded-full flex items-center justify-center"
+                              >
+                                T
+                              </Badge>
+                              <Badge 
+                                variant={pattern.wednesday ? "default" : "outline"} 
+                                className="w-7 h-7 rounded-full flex items-center justify-center"
+                              >
+                                W
+                              </Badge>
+                              <Badge 
+                                variant={pattern.thursday ? "default" : "outline"} 
+                                className="w-7 h-7 rounded-full flex items-center justify-center"
+                              >
+                                T
+                              </Badge>
+                              <Badge 
+                                variant={pattern.friday ? "default" : "outline"} 
+                                className="w-7 h-7 rounded-full flex items-center justify-center"
+                              >
+                                F
+                              </Badge>
+                              <Badge 
+                                variant={pattern.saturday ? "default" : "outline"} 
+                                className="w-7 h-7 rounded-full flex items-center justify-center"
+                              >
+                                S
+                              </Badge>
+                              <Badge 
+                                variant={pattern.sunday ? "default" : "outline"} 
+                                className="w-7 h-7 rounded-full flex items-center justify-center"
+                              >
+                                S
+                              </Badge>
+                            </div>
+                          </div>
+                          
+                          {pattern.notes && (
+                            <div className="mt-2 text-sm text-gray-600">
+                              <p>{pattern.notes}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </ScrollArea>
+                  )}
                 </div>
-              )}
-            </TabsContent>
-          </Tabs>
+              </TabsContent>
+            </Tabs>
+          </DialogHeader>
           
-          <DialogFooter>
-            <Button variant="outline" onClick={onClose}>Close</Button>
-          </DialogFooter>
+          <div className="mt-4 flex justify-end">
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
       
-      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this work pattern.
-              {patternToDelete?.type === 'recurring' && " This will affect all days where this recurring pattern applies."}
+              This will permanently delete this work pattern. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setPatternToDelete(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={handleDelete}
+              onClick={handleConfirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
