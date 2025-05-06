@@ -12,6 +12,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(userData: InsertUser): Promise<User>;
+  updateUser(id: number, userData: Partial<Omit<User, 'id' | 'password' | 'createdAt'>>): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   
   // Work pattern methods
@@ -57,6 +58,14 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(userData: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  async updateUser(id: number, userData: Partial<Omit<User, 'id' | 'password' | 'createdAt'>>): Promise<User | undefined> {
+    const [user] = await db.update(users)
+      .set(userData)
+      .where(eq(users.id, id))
+      .returning();
     return user;
   }
 
@@ -129,10 +138,15 @@ export class DatabaseStorage implements IStorage {
 
   async updateWorkPattern(id: number, patternData: Partial<InsertWorkPattern>): Promise<WorkPattern | undefined> {
     // Clean data before updating
-    const cleanData: Partial<InsertWorkPattern> = { ...patternData };
+    const cleanData: Record<string, any> = {};
+    
+    // Only include properties that are present in patternData
+    if (patternData.location !== undefined) cleanData.location = patternData.location;
+    if (patternData.notes !== undefined) cleanData.notes = patternData.notes;
+    if (patternData.userId !== undefined) cleanData.userId = patternData.userId;
     
     // Convert date string to Date object if present
-    if (patternData.date) {
+    if (patternData.date !== undefined) {
       cleanData.date = patternData.date instanceof Date 
         ? patternData.date 
         : new Date(patternData.date);
@@ -166,8 +180,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateRecurringPattern(id: number, patternData: Partial<InsertRecurringPattern>): Promise<RecurringPattern | undefined> {
+    // Clean data before updating
+    const cleanData: Record<string, any> = {};
+    
+    // Only include properties that are present in patternData
+    if (patternData.location !== undefined) cleanData.location = patternData.location;
+    if (patternData.notes !== undefined) cleanData.notes = patternData.notes;
+    if (patternData.userId !== undefined) cleanData.userId = patternData.userId;
+    if (patternData.dayOfWeek !== undefined) cleanData.dayOfWeek = patternData.dayOfWeek;
+    if (patternData.isActive !== undefined) cleanData.isActive = patternData.isActive;
+    
     const [pattern] = await db.update(recurringPatterns)
-      .set(patternData)
+      .set(cleanData)
       .where(eq(recurringPatterns.id, id))
       .returning();
     return pattern;

@@ -40,8 +40,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         patterns = await storage.getUserWorkPatternsInRange(userId!, startDate, endDate);
         
         // Get and add public holidays
-        const { getPublicHolidaysAsWorkPatterns } = await import('./services/holidays');
-        const publicHolidays = getPublicHolidaysAsWorkPatterns(startDate, endDate);
+        const { getQueenslandPublicHolidaysAsWorkPatterns } = await import('./services/holidays');
+        const publicHolidays = getQueenslandPublicHolidaysAsWorkPatterns(userId!, startDate, endDate);
         patterns = [...patterns, ...publicHolidays];
       } else {
         patterns = await storage.getUserWorkPatterns(userId!);
@@ -265,8 +265,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let patterns = await storage.getWorkPatternsInRange(startDate, endDate);
       
       // Get public holidays
-      const { getPublicHolidaysAsWorkPatterns } = await import('./services/holidays');
-      const publicHolidays = getPublicHolidaysAsWorkPatterns(startDate, endDate);
+      const { getQueenslandPublicHolidaysAsWorkPatterns } = await import('./services/holidays');
+      // For team view, create system-wide holiday patterns with userId = 0
+      const publicHolidays = getQueenslandPublicHolidaysAsWorkPatterns(0, startDate, endDate);
       patterns = [...patterns, ...publicHolidays];
       
       // Filter by location if specified
@@ -305,6 +306,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching team work patterns:", error);
       return res.status(500).json({ message: "Failed to fetch team work patterns" });
+    }
+  });
+  
+  // User profile management
+  app.patch("/api/user", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const userId = req.user?.id;
+      const { displayName, email, avatarUrl } = req.body;
+      
+      // Update only the fields that were provided
+      const updateData: Record<string, any> = {};
+      if (displayName !== undefined) updateData.displayName = displayName;
+      if (email !== undefined) updateData.email = email;
+      if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+      
+      // Update user in database
+      const updatedUser = await storage.updateUser(userId!, updateData);
+      
+      // Update session user data
+      if (updatedUser) {
+        const { password, ...userWithoutPassword } = updatedUser;
+        req.user = userWithoutPassword as any;
+        return res.json(userWithoutPassword);
+      } else {
+        return res.status(404).json({ message: "User not found" });
+      }
+    } catch (error) {
+      console.error("Error updating user:", error);
+      return res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+  
+  // Refresh Queensland public holidays
+  app.post("/api/refresh-holidays", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+    
+    try {
+      const userId = req.user?.id;
+      const { getQueenslandPublicHolidaysAsWorkPatterns } = await import('./services/holidays');
+      
+      // Get the next 12 months worth of holidays
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setFullYear(endDate.getFullYear() + 1);
+      
+      // Get existing work patterns for the user
+      const existingPatterns = await storage.getUserWorkPatternsInRange(userId!, startDate, endDate);
+      
+      // Delete any existing public holidays
+      const publicHolidayIds = existingPatterns
+        .filter(pattern => pattern.location === 'public_holiday')
+        .map(pattern => pattern.id);
+      
+      for (const id of publicHolidayIds) {
+        await storage.deleteWorkPattern(id);
+      }
+      
+      // Add the Queensland public holidays
+      const holidays = getQueenslandPublicHolidaysAsWorkPatterns(userId!, startDate, endDate);
+      
+      for (const holiday of holidays) {
+        await storage.createWorkPattern({
+          userId: userId!,
+          date: holiday.date,
+          location: 'public_holiday',
+          notes: holiday.notes
+        });
+      }
+      
+      return res.status(200).json({ 
+        message: "Queensland public holidays refreshed successfully",
+        count: holidays.length
+      });
+    } catch (error) {
+      console.error("Error refreshing public holidays:", error);
+      return res.status(500).json({ message: "Failed to refresh public holidays" });
     }
   });
   
