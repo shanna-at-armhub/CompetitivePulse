@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { PlusIcon, Calendar, Filter, CalendarDays, Calendar as CalendarIcon, ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { PlusIcon, Calendar, Filter, CalendarDays, Calendar as CalendarIcon, ChevronsUpDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCalendar } from "@/hooks/use-calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkPattern } from "@shared/schema";
 import { format, addDays, subDays, addWeeks, subWeeks } from "date-fns";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -83,6 +85,12 @@ function CalendarContent({
     currentDate,
     setCurrentDate
   } = useCalendar();
+  
+  // Advanced filter dialog state
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [showPublicHolidays, setShowPublicHolidays] = useState(true);
+  const [showRecurringPatterns, setShowRecurringPatterns] = useState(true);
+  const [showOneTimePatterns, setShowOneTimePatterns] = useState(true);
   
   return (
     <main className="flex-1 overflow-y-auto">
@@ -159,7 +167,12 @@ function CalendarContent({
               </Select>
             </div>
             
-            <Button variant="outline" size="sm" className="flex items-center">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center"
+              onClick={() => setFilterDialogOpen(true)}
+            >
               <Filter className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">More filters</span>
             </Button>
@@ -344,6 +357,95 @@ function CalendarContent({
           onEditPattern={onEditPattern}
         />
       )}
+      
+      {/* Filter Dialog */}
+      <Dialog open={filterDialogOpen} onOpenChange={setFilterDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Filter className="h-5 w-5 mr-2" />
+              Advanced Filters
+            </DialogTitle>
+            <DialogDescription>
+              Customize which types of work patterns appear on your calendar.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="flex items-start space-x-3">
+              <Checkbox 
+                id="show-public-holidays" 
+                checked={showPublicHolidays}
+                onCheckedChange={(checked) => setShowPublicHolidays(!!checked)}
+              />
+              <div className="space-y-1">
+                <Label 
+                  htmlFor="show-public-holidays" 
+                  className="font-medium"
+                >
+                  Show Public Holidays
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Display Queensland public holidays on the calendar
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-3">
+              <Checkbox 
+                id="show-recurring" 
+                checked={showRecurringPatterns}
+                onCheckedChange={(checked) => setShowRecurringPatterns(!!checked)}
+              />
+              <div className="space-y-1">
+                <Label 
+                  htmlFor="show-recurring" 
+                  className="font-medium"
+                >
+                  Show Recurring Patterns
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Display patterns that repeat weekly (e.g., office on Mondays)
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-3">
+              <Checkbox 
+                id="show-one-time" 
+                checked={showOneTimePatterns}
+                onCheckedChange={(checked) => setShowOneTimePatterns(!!checked)}
+              />
+              <div className="space-y-1">
+                <Label 
+                  htmlFor="show-one-time" 
+                  className="font-medium"
+                >
+                  Show One-Time Patterns
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Display patterns that occur only once (e.g., annual leave)
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFilterDialogOpen(false)}>
+              Close
+            </Button>
+            <Button 
+              type="submit" 
+              onClick={() => {
+                // Apply filters here...
+                setFilterDialogOpen(false);
+              }}
+            >
+              Apply Filters
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

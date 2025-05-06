@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { insertWorkPatternSchema, insertRecurringPatternSchema } from "@shared/schema";
+import { insertWorkPatternSchema, insertRecurringPatternSchema, WorkPattern } from "@shared/schema";
 import { z } from "zod";
 
 // Helper to check if user is admin
@@ -336,16 +336,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ];
             
             if (dayMap[dayOfWeek]) {
-              // Create a one-time pattern for this day
-              patterns.push({
+              // Create a one-time pattern for this day (with isRecurring flag)
+              const patternWithFlag = {
                 id: -1, // Virtual ID for recurring pattern instances
                 userId: user.id,
                 date: new Date(currentDate),
                 location: recurringPattern.location,
                 notes: recurringPattern.notes,
                 createdAt: new Date(),
-                isRecurring: true // Add flag to identify recurring patterns
-              });
+              } as WorkPattern & { isRecurring: boolean };
+              
+              // Add the isRecurring flag
+              patternWithFlag.isRecurring = true;
+              
+              patterns.push(patternWithFlag);
             }
             
             // Move to the next day
@@ -362,8 +366,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add recurring patterns to the result
       patterns = [...patterns, ...recurringPatterns];
       
+      // Add the isRecurring flag type to WorkPattern for typechecking
+      type WorkPatternWithRecurringFlag = WorkPattern & { isRecurring?: boolean };
+      
+      // Cast patterns to include the isRecurring flag
+      const patternsWithFlag = patterns as WorkPatternWithRecurringFlag[];
+      
       // Remove one-time patterns that match recurring patterns (prefer one-time over recurring)
-      patterns = patterns.filter((pattern, index, self) => {
+      patterns = patternsWithFlag.filter((pattern, index, self) => {
         // Keep the pattern if it's not a recurring pattern or if there's no one-time pattern with the same date and user
         if (!pattern.isRecurring) return true;
         
