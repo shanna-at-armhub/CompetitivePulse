@@ -54,28 +54,33 @@ export function AddPatternModal({ isOpen, onClose }: AddPatternModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (patternType === "one_time") {
-      await addWorkPattern({
-        date,
-        location,
-        notes,
-      });
-    } else {
-      await addRecurringPattern({
-        location,
-        monday,
-        tuesday,
-        wednesday,
-        thursday,
-        friday,
-        saturday,
-        sunday,
-        notes,
-      });
+    try {
+      if (patternType === "one_time") {
+        // Convert date to ISO string format for the API
+        await addWorkPattern({
+          date: date.toISOString(),
+          location,
+          notes,
+        });
+      } else {
+        await addRecurringPattern({
+          location,
+          monday,
+          tuesday,
+          wednesday,
+          thursday,
+          friday,
+          saturday,
+          sunday,
+          notes,
+        });
+      }
+      
+      resetForm();
+      onClose();
+    } catch (error) {
+      console.error("Error saving pattern:", error);
     }
-    
-    resetForm();
-    onClose();
   };
   
   // Handle cancel

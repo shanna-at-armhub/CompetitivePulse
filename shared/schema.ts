@@ -5,7 +5,7 @@ import { relations } from "drizzle-orm";
 
 // Enums
 export const roleEnum = pgEnum('role', ['user', 'admin']);
-export const locationEnum = pgEnum('location', ['home', 'office', 'other']);
+export const locationEnum = pgEnum('location', ['home', 'office', 'annual_leave', 'personal_leave', 'public_holiday', 'other']);
 export const patternTypeEnum = pgEnum('pattern_type', ['one_time', 'recurring']);
 
 // Users table
