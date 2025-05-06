@@ -14,7 +14,7 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   displayName: text("display_name").notNull(),
-  email: text("email"),
+  email: text("email").notNull().unique(),
   role: roleEnum("role").default('user').notNull(),
   avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -62,10 +62,16 @@ export const recurringPatternsRelations = relations(recurringPatterns, ({ one })
 
 // Schemas
 export const insertUserSchema = createInsertSchema(users, {
-  username: (schema) => schema.min(3, "Username must be at least 3 characters"),
+  username: (schema) => schema.optional(),
   password: (schema) => schema.min(6, "Password must be at least 6 characters"),
   displayName: (schema) => schema.min(2, "Display name must be at least 2 characters"),
-}).omit({ createdAt: true });
+  email: (schema) => schema.email("Please enter a valid email address"),
+}).omit({ createdAt: true })
+  .transform((data) => ({
+    ...data,
+    // Default username to email if not provided
+    username: data.username || data.email,
+  }));
 
 export const insertWorkPatternSchema = createInsertSchema(workPatterns, {
   notes: (schema) => schema.optional(),
@@ -76,9 +82,9 @@ export const insertRecurringPatternSchema = createInsertSchema(recurringPatterns
   notes: (schema) => schema.optional(),
 }).omit({ createdAt: true });
 
-// Login schema
+// Login schema - allow login with email or username
 export const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
+  username: z.string().min(1, "Username or email is required"),
   password: z.string().min(1, "Password is required"),
 });
 
