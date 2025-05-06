@@ -32,9 +32,35 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { User, WorkPattern, RecurringPattern } from "@shared/schema";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { 
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { User, WorkPattern, RecurringPattern, locationEnum } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useForm } from "react-hook-form";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -91,6 +117,7 @@ export default function SettingsPage() {
 
 function UserProfileSection({ user }: { user: User | null }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -99,6 +126,7 @@ function UserProfileSection({ user }: { user: User | null }) {
 
   useEffect(() => {
     if (user) {
+      setUsername(user.username);
       setDisplayName(user.displayName || "");
       setEmail(user.email || "");
       setAvatarUrl(user.avatarUrl || "");
@@ -111,6 +139,7 @@ function UserProfileSection({ user }: { user: User | null }) {
     setIsSubmitting(true);
     try {
       const response = await apiRequest("PATCH", "/api/user", {
+        username,
         displayName,
         email,
         avatarUrl
@@ -197,13 +226,11 @@ function UserProfileSection({ user }: { user: User | null }) {
               </Label>
               <Input
                 id="username"
-                value={user.username}
-                disabled
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={!isEditing}
                 className="mt-1"
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Username cannot be changed
-              </p>
             </div>
             
             <div>
@@ -371,6 +398,33 @@ function CalendarEntriesSection() {
 
   return (
     <>
+      <Dialog 
+        open={showAddEntryModal} 
+        onOpenChange={(open) => !open && setShowAddEntryModal(false)}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Add Calendar Entry</DialogTitle>
+            <DialogDescription>
+              Create a new work pattern or recurring entry
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Tabs defaultValue="one-time" className="pt-2">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="one-time">One-time Entry</TabsTrigger>
+              <TabsTrigger value="recurring">Recurring Pattern</TabsTrigger>
+            </TabsList>
+            <TabsContent value="one-time">
+              <OneTimeEntryForm onClose={() => setShowAddEntryModal(false)} />
+            </TabsContent>
+            <TabsContent value="recurring">
+              <RecurringPatternForm onClose={() => setShowAddEntryModal(false)} />
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+      
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div>
@@ -728,5 +782,289 @@ function PreferencesSection() {
         </Button>
       </CardFooter>
     </Card>
+  );
+}
+
+// Form components for the Add Entry modal
+function OneTimeEntryForm({ onClose }: { onClose: () => void }) {
+  const { addWorkPattern } = useCalendar();
+  const { toast } = useToast();
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [location, setLocation] = useState<string>("office");
+  const [notes, setNotes] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedDate) {
+      toast({
+        title: "Error",
+        description: "Please select a date for the entry",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      await addWorkPattern({
+        date: selectedDate,
+        location: location as any,
+        notes: notes || null
+      });
+      
+      toast({
+        title: "Success",
+        description: "Work pattern added successfully",
+        variant: "default",
+      });
+      
+      onClose();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add work pattern",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="date">Date</Label>
+        <div className="border rounded-md p-2">
+          <CalendarPicker
+            mode="single"
+            selected={selectedDate}
+            onSelect={setSelectedDate}
+            className="mx-auto"
+          />
+        </div>
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="location">Location</Label>
+        <Select value={location} onValueChange={setLocation}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select a location" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="office">Office</SelectItem>
+            <SelectItem value="home">Home</SelectItem>
+            <SelectItem value="annual_leave">Annual Leave</SelectItem>
+            <SelectItem value="personal_leave">Personal Leave</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="notes">Notes (optional)</Label>
+        <Input 
+          id="notes" 
+          value={notes} 
+          onChange={(e) => setNotes(e.target.value)} 
+          placeholder="Add any additional information" 
+        />
+      </div>
+      
+      <div className="flex justify-end gap-2 pt-4">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={onClose}
+        >
+          Cancel
+        </Button>
+        <Button 
+          type="submit" 
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Saving..." : "Add Entry"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function RecurringPatternForm({ onClose }: { onClose: () => void }) {
+  const { addRecurringPattern } = useCalendar();
+  const { toast } = useToast();
+  const [location, setLocation] = useState<string>("office");
+  const [notes, setNotes] = useState<string>("");
+  const [daysOfWeek, setDaysOfWeek] = useState({
+    monday: false,
+    tuesday: false,
+    wednesday: false,
+    thursday: false,
+    friday: false,
+    saturday: false,
+    sunday: false,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleDayToggle = (day: keyof typeof daysOfWeek) => {
+    setDaysOfWeek(prev => ({
+      ...prev,
+      [day]: !prev[day]
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!Object.values(daysOfWeek).some(Boolean)) {
+      toast({
+        title: "Error",
+        description: "Please select at least one day of the week",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      await addRecurringPattern({
+        location: location as any,
+        notes: notes || null,
+        monday: daysOfWeek.monday,
+        tuesday: daysOfWeek.tuesday,
+        wednesday: daysOfWeek.wednesday,
+        thursday: daysOfWeek.thursday,
+        friday: daysOfWeek.friday,
+        saturday: daysOfWeek.saturday,
+        sunday: daysOfWeek.sunday,
+      });
+      
+      toast({
+        title: "Success",
+        description: "Recurring pattern added successfully",
+        variant: "default",
+      });
+      
+      onClose();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add recurring pattern",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label>Days of the Week</Label>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant={daysOfWeek.monday ? "default" : "outline"}
+            className="flex-1 min-w-[3rem]"
+            onClick={() => handleDayToggle("monday")}
+          >
+            Mon
+          </Button>
+          <Button
+            type="button"
+            variant={daysOfWeek.tuesday ? "default" : "outline"}
+            className="flex-1 min-w-[3rem]"
+            onClick={() => handleDayToggle("tuesday")}
+          >
+            Tue
+          </Button>
+          <Button
+            type="button"
+            variant={daysOfWeek.wednesday ? "default" : "outline"}
+            className="flex-1 min-w-[3rem]"
+            onClick={() => handleDayToggle("wednesday")}
+          >
+            Wed
+          </Button>
+          <Button
+            type="button"
+            variant={daysOfWeek.thursday ? "default" : "outline"}
+            className="flex-1 min-w-[3rem]"
+            onClick={() => handleDayToggle("thursday")}
+          >
+            Thu
+          </Button>
+          <Button
+            type="button"
+            variant={daysOfWeek.friday ? "default" : "outline"}
+            className="flex-1 min-w-[3rem]"
+            onClick={() => handleDayToggle("friday")}
+          >
+            Fri
+          </Button>
+          <Button
+            type="button"
+            variant={daysOfWeek.saturday ? "default" : "outline"}
+            className="flex-1 min-w-[3rem]"
+            onClick={() => handleDayToggle("saturday")}
+          >
+            Sat
+          </Button>
+          <Button
+            type="button"
+            variant={daysOfWeek.sunday ? "default" : "outline"}
+            className="flex-1 min-w-[3rem]"
+            onClick={() => handleDayToggle("sunday")}
+          >
+            Sun
+          </Button>
+        </div>
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="location">Location</Label>
+        <Select value={location} onValueChange={setLocation}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select a location" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="office">Office</SelectItem>
+            <SelectItem value="home">Home</SelectItem>
+            <SelectItem value="annual_leave">Annual Leave</SelectItem>
+            <SelectItem value="personal_leave">Personal Leave</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="notes">Notes (optional)</Label>
+        <Input 
+          id="notes" 
+          value={notes} 
+          onChange={(e) => setNotes(e.target.value)} 
+          placeholder="Add any additional information" 
+        />
+      </div>
+      
+      <div className="flex justify-end gap-2 pt-4">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={onClose}
+        >
+          Cancel
+        </Button>
+        <Button 
+          type="submit" 
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Saving..." : "Add Pattern"}
+        </Button>
+      </div>
+    </form>
   );
 }
