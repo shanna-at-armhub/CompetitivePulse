@@ -27,6 +27,9 @@ type CalendarContextType = {
   view: CalendarViewType;
   mode: CalendarModeType;
   locationFilter: string | null;
+  showPublicHolidays: boolean;
+  showRecurringPatterns: boolean;
+  showOneTimePatterns: boolean;
   
   // Work Patterns
   workPatterns: WorkPattern[];
@@ -43,6 +46,9 @@ type CalendarContextType = {
   setView: (view: CalendarViewType) => void;
   setMode: (mode: CalendarModeType) => void;
   setLocationFilter: (location: string | null) => void;
+  setShowPublicHolidays: (show: boolean) => void;
+  setShowRecurringPatterns: (show: boolean) => void;
+  setShowOneTimePatterns: (show: boolean) => void;
   
   // Work pattern mutations
   addWorkPattern: (pattern: Omit<InsertWorkPattern, "userId">) => Promise<void>;
@@ -73,6 +79,11 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<CalendarViewType>("month");
   const [mode, setMode] = useState<CalendarModeType>("personal");
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
+  
+  // Advanced filter states
+  const [showPublicHolidays, setShowPublicHolidays] = useState<boolean>(true);
+  const [showRecurringPatterns, setShowRecurringPatterns] = useState<boolean>(true);
+  const [showOneTimePatterns, setShowOneTimePatterns] = useState<boolean>(true);
   
   // Calculate date range for queries based on view
   let startDate: Date;
@@ -328,8 +339,32 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
         createdAt: pattern.createdAt
       }));
       
-      // Combine both types of patterns
-      const dayPatterns = [...filteredOneTimePatterns, ...recurringAsWorkPatterns];
+      // Apply advanced filter settings
+      let dayPatterns = [];
+      
+      // Add one-time patterns if enabled
+      if (showOneTimePatterns) {
+        // Filter public holidays
+        const oneTimeNonHolidays = filteredOneTimePatterns.filter(pattern => 
+          pattern.location !== 'public_holiday'
+        );
+        
+        // Add non-holiday patterns
+        dayPatterns.push(...oneTimeNonHolidays);
+        
+        // Add public holidays separately if enabled
+        if (showPublicHolidays) {
+          const publicHolidays = filteredOneTimePatterns.filter(pattern => 
+            pattern.location === 'public_holiday'
+          );
+          dayPatterns.push(...publicHolidays);
+        }
+      }
+      
+      // Add recurring patterns if enabled
+      if (showRecurringPatterns) {
+        dayPatterns.push(...recurringAsWorkPatterns);
+      }
       
       return {
         date,
@@ -422,6 +457,9 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
         view,
         mode,
         locationFilter,
+        showPublicHolidays,
+        showRecurringPatterns,
+        showOneTimePatterns,
         
         // Data
         workPatterns,
@@ -438,6 +476,9 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
         setView,
         setMode,
         setLocationFilter,
+        setShowPublicHolidays,
+        setShowRecurringPatterns,
+        setShowOneTimePatterns,
         
         // Mutations
         addWorkPattern,

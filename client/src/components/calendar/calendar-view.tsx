@@ -86,11 +86,18 @@ function CalendarContent({
     setCurrentDate
   } = useCalendar();
   
-  // Advanced filter dialog state
+  // Filter dialog state (only for dialog open state)
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
-  const [showPublicHolidays, setShowPublicHolidays] = useState(true);
-  const [showRecurringPatterns, setShowRecurringPatterns] = useState(true);
-  const [showOneTimePatterns, setShowOneTimePatterns] = useState(true);
+  
+  // Get filter states and setters from the useCalendar hook
+  const { 
+    showPublicHolidays, 
+    setShowPublicHolidays,
+    showRecurringPatterns, 
+    setShowRecurringPatterns,
+    showOneTimePatterns, 
+    setShowOneTimePatterns 
+  } = useCalendar();
   
   return (
     <main className="flex-1 overflow-y-auto">
@@ -437,7 +444,8 @@ function CalendarContent({
             <Button 
               type="submit" 
               onClick={() => {
-                // Apply filters here...
+                // Filters are automatically applied via state
+                // No need for additional API calls
                 setFilterDialogOpen(false);
               }}
             >
