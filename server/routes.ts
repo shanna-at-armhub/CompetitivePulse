@@ -60,18 +60,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Get the data from request body
       let data = { ...req.body };
+      console.log("Original data received:", data);
       
       // Ensure date is properly converted to a Date object regardless of input format
       if (data.date) {
-        // If it's already a Date object that was serialized as an object with properties
-        if (data.date && typeof data.date === 'object' && data.date.hasOwnProperty('toISOString')) {
-          data.date = new Date(data.date);
+        // If it's already a Date object that was serialized as an object
+        if (typeof data.date === 'object') {
+          if (data.date instanceof Date) {
+            console.log("Date is already a Date object");
+          } else {
+            console.log("Date is an object, converting to Date", data.date);
+            data.date = new Date(data.date);
+          }
         } 
         // If it's an ISO string
         else if (typeof data.date === 'string') {
+          console.log("Date is a string, converting to Date:", data.date);
           data.date = new Date(data.date);
         }
-        // If it's already a proper Date object, leave it as is
+      }
+      
+      console.log("Processed data after date conversion:", data);
+      
+      // Ensure the date is a proper Date object before validation
+      if (data.date && !(data.date instanceof Date)) {
+        console.error("Failed to convert to Date object:", data.date);
+        return res.status(400).json({ message: "Invalid date format" });
+      }
+      
+      // For debugging, check date validity
+      if (data.date instanceof Date && isNaN(data.date.getTime())) {
+        console.error("Date is invalid (NaN):", data.date);
+        return res.status(400).json({ message: "Invalid date" });
       }
       
       const validatedData = insertWorkPatternSchema.parse({
@@ -79,14 +99,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user?.id
       });
       
+      console.log("Validated data before saving:", validatedData);
+      
       const newPattern = await storage.createWorkPattern(validatedData);
+      console.log("New pattern created:", newPattern);
       return res.status(201).json(newPattern);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ errors: error.errors });
+        console.error("Validation error:", error.errors);
+        return res.status(400).json({ message: "Validation failed", errors: error.errors });
       }
       console.error("Error creating work pattern:", error);
-      return res.status(500).json({ message: "Failed to create work pattern" });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return res.status(500).json({ message: `Failed to create work pattern: ${errorMessage}` });
     }
   });
   

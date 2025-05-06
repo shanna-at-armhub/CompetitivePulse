@@ -55,12 +55,18 @@ export function AddPatternModal({ isOpen, onClose }: AddPatternModalProps) {
     e.preventDefault();
     
     try {
+      console.log("Submitting pattern form:", { patternType, date, location, notes });
+      
       if (patternType === "one_time") {
-        // Send the date object directly (don't call toISOString())
+        // Ensure we have a valid date - create a clean date object
+        // This prevents issues with date serialization
+        const cleanDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        console.log("Using clean date:", cleanDate, cleanDate.toISOString());
+        
         await addWorkPattern({
-          date,
+          date: cleanDate,
           location,
-          notes,
+          notes: notes || null, // Ensure empty string becomes null
         });
       } else {
         await addRecurringPattern({
@@ -72,7 +78,7 @@ export function AddPatternModal({ isOpen, onClose }: AddPatternModalProps) {
           friday,
           saturday,
           sunday,
-          notes,
+          notes: notes || null, // Ensure empty string becomes null
         });
       }
       
@@ -80,6 +86,7 @@ export function AddPatternModal({ isOpen, onClose }: AddPatternModalProps) {
       onClose();
     } catch (error) {
       console.error("Error saving pattern:", error);
+      // Keep the modal open so the user can try again
     }
   };
   
