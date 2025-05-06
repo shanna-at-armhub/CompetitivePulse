@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { z } from "zod";
@@ -32,12 +32,6 @@ export default function AuthPage() {
   const { user, loginMutation, registerMutation, isLoading } = useAuth();
   const [, navigate] = useLocation();
 
-  // If already logged in, redirect to home
-  if (user) {
-    navigate("/");
-    return null;
-  }
-
   // Login form
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -66,6 +60,13 @@ export default function AuthPage() {
   const onRegisterSubmit = (values: RegisterFormValues) => {
     registerMutation.mutate(values);
   };
+
+  // Redirect to home if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col sm:flex-row">

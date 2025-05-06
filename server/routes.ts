@@ -58,8 +58,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
     
     try {
+      // Ensure the date is properly converted to a Date object if it's a string
+      let data = { ...req.body };
+      if (typeof data.date === 'string') {
+        data.date = new Date(data.date);
+      }
+      
       const validatedData = insertWorkPatternSchema.parse({
-        ...req.body,
+        ...data,
         userId: req.user?.id
       });
       
