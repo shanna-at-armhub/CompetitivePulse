@@ -86,7 +86,7 @@ function CalendarContent({
   
   return (
     <main className="flex-1 overflow-y-auto">
-      <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <div className="p-[10px]">
         {/* Filter and View Controls */}
         <div className="mb-6 flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
           {/* View controls */}
