@@ -60,11 +60,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         patterns = await storage.getUserWorkPatternsInRange(userId!, startDate, endDate);
         
         // Get and add public holidays
-        const { getQueenslandPublicHolidaysAsWorkPatterns } = await import('./services/holidays');
+        const { getQueenslandPublicHolidaysAsWorkPatterns, getQueenslandPublicHolidayName } = await import('./services/holidays');
         const publicHolidays = getQueenslandPublicHolidaysAsWorkPatterns(userId!, startDate, endDate);
+        
+        // Filter existing patterns that fall on public holidays (should be replaced with holiday)
+        patterns = patterns.filter(pattern => {
+          const patternDate = new Date(pattern.date);
+          const holidayName = getQueenslandPublicHolidayName(patternDate);
+          // Keep the pattern if it's not on a holiday or it's already marked as a public holiday
+          return !holidayName || pattern.location === 'public_holiday';
+        });
+        
+        // Add the public holidays
         patterns = [...patterns, ...publicHolidays];
       } else {
         patterns = await storage.getUserWorkPatterns(userId!);
+        
+        // Handle public holidays for the full set too
+        const { getQueenslandPublicHolidayName } = await import('./services/holidays');
+        
+        // Filter out patterns that fall on public holidays
+        patterns = patterns.filter(pattern => {
+          const patternDate = new Date(pattern.date);
+          const holidayName = getQueenslandPublicHolidayName(patternDate);
+          return !holidayName || pattern.location === 'public_holiday';
+        });
       }
       
       return res.json(patterns);

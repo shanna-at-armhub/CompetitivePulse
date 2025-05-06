@@ -110,6 +110,46 @@ export class DatabaseStorage implements IStorage {
       ? patternData.date 
       : new Date(patternData.date);
     
+    // Special handling for leave types (annual_leave, personal_leave) and checking for public holidays
+    const isLeaveType = patternData.location === "annual_leave" || patternData.location === "personal_leave";
+    
+    // Get the date string in YYYY-MM-DD format for comparison
+    const dateStr = cleanDate.toISOString().split('T')[0];
+    
+    // Import the function to check if date is a public holiday
+    const { isQueenslandPublicHoliday } = await import('./services/holidays');
+    const isPublicHoliday = isQueenslandPublicHoliday(cleanDate);
+    
+    // If it's a public holiday and we're not specifically adding a public holiday record,
+    // we should delete any existing pattern and not add a new one
+    if (isPublicHoliday && patternData.location !== "public_holiday") {
+      // Find and delete any existing pattern for this date
+      const existingPatterns = await db.select()
+        .from(workPatterns)
+        .where(
+          and(
+            eq(workPatterns.userId, patternData.userId),
+            sql`DATE(${workPatterns.date}) = DATE(${cleanDate})`
+          )
+        );
+      
+      if (existingPatterns.length > 0) {
+        console.log(`Deleting existing pattern for date ${dateStr} due to public holiday`);
+        await db.delete(workPatterns)
+          .where(eq(workPatterns.id, existingPatterns[0].id));
+      }
+      
+      // Return a virtual public holiday pattern
+      return {
+        id: -1,
+        userId: patternData.userId,
+        date: cleanDate,
+        location: "public_holiday",
+        notes: "Public Holiday",
+        createdAt: new Date()
+      };
+    }
+    
     // Check if there's already a pattern for this user on this date
     const existingPattern = await db.select()
       .from(workPatterns)
@@ -121,15 +161,38 @@ export class DatabaseStorage implements IStorage {
       )
       .limit(1);
     
-    // If there's an existing pattern, update it instead of creating a new one
+    // If there's an existing pattern, handle based on the situation
     if (existingPattern.length > 0) {
-      console.log(`Overwriting existing pattern ${existingPattern[0].id} for date ${cleanDate}`);
+      const existing = existingPattern[0];
+      
+      // If the existing one is a public holiday and we're trying to add something else,
+      // don't override the public holiday
+      if (existing.location === "public_holiday") {
+        console.log(`Keeping public holiday on ${dateStr} instead of adding new pattern`);
+        return existing;
+      }
+      
+      // If we're adding leave and there's an existing pattern, replace it
+      if (isLeaveType) {
+        console.log(`Replacing existing pattern ${existing.id} with leave for date ${dateStr}`);
+        const [pattern] = await db.update(workPatterns)
+          .set({
+            location: patternData.location,
+            notes: patternData.notes
+          })
+          .where(eq(workPatterns.id, existing.id))
+          .returning();
+        return pattern;
+      }
+      
+      // For normal updates (not leave types)
+      console.log(`Updating existing pattern ${existing.id} for date ${dateStr}`);
       const [pattern] = await db.update(workPatterns)
         .set({
           location: patternData.location,
           notes: patternData.notes
         })
-        .where(eq(workPatterns.id, existingPattern[0].id))
+        .where(eq(workPatterns.id, existing.id))
         .returning();
       return pattern;
     }
