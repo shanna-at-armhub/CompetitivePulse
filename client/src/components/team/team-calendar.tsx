@@ -20,7 +20,7 @@ type WorkPatternWithUser = WorkPattern & {
 
 export function TeamCalendar() {
   const { currentDate, calendarDays, setCurrentDate } = useCalendar();
-  const [locationFilter, setLocationFilter] = useState<string | null>(null);
+  const [locationFilter, setLocationFilter] = useState<string>("all_locations");
   
   // Format date range for API query
   const startDate = calendarDays[0]?.date || new Date();
@@ -33,7 +33,7 @@ export function TeamCalendar() {
       { 
         startDate: startDate ? format(startDate, "yyyy-MM-dd") : "", 
         endDate: endDate ? format(endDate, "yyyy-MM-dd") : "",
-        location: locationFilter || undefined
+        location: locationFilter !== "all_locations" ? locationFilter : undefined
       }
     ],
     queryFn: getQueryFn({ on401: "returnNull" }),
@@ -114,14 +114,14 @@ export function TeamCalendar() {
         
         <div className="w-full sm:w-48">
           <Select
-            value={locationFilter || ""}
-            onValueChange={(value) => setLocationFilter(value === "" ? null : value)}
+            value={locationFilter}
+            onValueChange={(value: string) => setLocationFilter(value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="All Locations" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Locations</SelectItem>
+              <SelectItem value="all_locations">All Locations</SelectItem>
               {Object.values(locationEnum.enumValues).map((location) => (
                 <SelectItem key={location} value={location}>
                   {getLocationName(location)}
